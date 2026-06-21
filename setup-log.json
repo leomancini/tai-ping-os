@@ -1,0 +1,10 @@
+{
+  "app_id": "tai-ping-os",
+  "app_name": "Tai Ping OS",
+  "domain": "https://tai-ping-os.leo.gd",
+  "host": "localhost",
+  "port": "3137",
+  "author": "leo",
+  "anthropic": false,
+  "created_on": "Sun Jun 21 12:06:13 PM EDT 2026"
+}
