@@ -1,56 +1,33 @@
 import React from "react";
 import styled from "styled-components";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faComment,
-  faCamera,
-  faMusic,
-  faImage,
-  faClock,
-  faCalendar,
-  faMap,
-  faGear,
-  faEnvelope,
-  faPhone,
-  faCloudSun,
-  faGamepad,
-} from "@fortawesome/free-solid-svg-icons";
-
-// Apps shown on the home screen grid. Authored on the app's logical canvas.
-const APPS = [
-  { name: "Messages", icon: faComment, color: "#34c759" },
-  { name: "Phone", icon: faPhone, color: "#30b94d" },
-  { name: "Mail", icon: faEnvelope, color: "#0a84ff" },
-  { name: "Camera", icon: faCamera, color: "#5c5c5e" },
-  { name: "Photos", icon: faImage, color: "#ff2d55" },
-  { name: "Music", icon: faMusic, color: "#fa2d48" },
-  { name: "Maps", icon: faMap, color: "#1aab4f" },
-  { name: "Calendar", icon: faCalendar, color: "#ff3b30" },
-  { name: "Clock", icon: faClock, color: "#1c1c1e" },
-  { name: "Weather", icon: faCloudSun, color: "#0a84ff" },
-  { name: "Games", icon: faGamepad, color: "#af52de" },
-  { name: "Settings", icon: faGear, color: "#8e8e93" },
-];
+import { APPS } from "./apps";
 
 const Screen = styled.div`
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-  padding: 28px 32px;
+  padding: ${(p) => p.$padTop}px ${(p) => p.$gap}px ${(p) => p.$gap}px
+    ${(p) => p.$padLeft}px;
   background: #000;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  grid-auto-rows: min-content;
-  gap: 20px 12px;
-  align-content: start;
+  grid-template-columns: repeat(${(p) => p.$cols}, 1fr);
+  grid-auto-rows: ${(p) => p.$rowHeight}px;
+  gap: ${(p) => p.$gap}px;
   user-select: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 const Tile = styled.button`
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  align-items: stretch;
   border: none;
   background: none;
   padding: 0;
@@ -60,35 +37,68 @@ const Tile = styled.button`
 
 const IconBox = styled.div`
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  border-radius: ${(p) => p.$radius}px;
   background: ${(p) => p.$color};
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
 `;
 
-const Label = styled.span`
-  font-size: 11px;
-  color: #f5f5f7;
+// Empty grey app slot.
+const Placeholder = styled.div`
+  width: 100%;
+  height: 100%;
+  border-radius: ${(p) => p.$radius}px;
+  background: #2c2c2e;
+`;
+
+const IconName = styled.span`
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
   white-space: nowrap;
 `;
 
-function HomeScreen({ onLaunch }) {
+function HomeScreen({
+  onLaunch,
+  rows = 3,
+  iconHeight = 56,
+  iconRadius = 14,
+  gap = 28,
+  padLeft = 32,
+  padTop = 28,
+}) {
+  const cols = APPS.length;
+  const placeholderCount = Math.max(0, cols * rows - APPS.length);
+  const glyph = iconHeight * 0.42;
+
   return (
-    <Screen>
+    <Screen
+      $cols={cols}
+      $rowHeight={iconHeight}
+      $gap={gap}
+      $padLeft={padLeft}
+      $padTop={padTop}
+    >
       {APPS.map((app) => (
-        <Tile key={app.name} onClick={() => onLaunch && onLaunch(app)}>
-          <IconBox $color={app.color}>
+        <Tile key={app.id} onClick={() => onLaunch && onLaunch(app.id)}>
+          <IconBox $color={app.color} $radius={iconRadius}>
             <FontAwesomeIcon
               icon={app.icon}
               color="#fff"
-              style={{ width: 28, height: 28 }}
+              style={{ width: glyph, height: glyph }}
             />
+            <IconName>{app.name}</IconName>
           </IconBox>
-          <Label>{app.name}</Label>
         </Tile>
+      ))}
+      {Array.from({ length: placeholderCount }).map((_, i) => (
+        <Placeholder key={`ph-${i}`} $radius={iconRadius} />
       ))}
     </Screen>
   );

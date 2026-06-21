@@ -7,6 +7,7 @@ import {
   faSquare,
 } from "@fortawesome/free-solid-svg-icons";
 import HomeScreen from "./HomeScreen";
+import { APPS, getApp } from "./apps";
 
 export const SCREEN_WIDTH = 1600;
 export const SCREEN_HEIGHT = 720;
@@ -35,7 +36,7 @@ export const MASK_RECTS = {
   icons: ["home", "settings", "placeholder", "placeholder"],
   width: 88,
   height: 88,
-  radius: 18,
+  radius: 24,
   color: "#333",
   iconSize: 44,
   iconColor: "#fff",
@@ -81,7 +82,7 @@ const Stage = styled.div`
   left: ${(p) => p.$left}px;
   width: ${(p) => p.$w}px;
   height: ${LOGICAL_HEIGHT}px;
-  background: #fff;
+  background: #000;
   transform: scale(${UI_SCALE});
   transform-origin: top left;
 `;
@@ -95,7 +96,7 @@ const LeftMask = styled.div`
   right: 0;
   bottom: 0;
   left: ${(p) => p.$offset}px;
-  border-radius: ${APP_RADIUS}px 0 0 ${APP_RADIUS}px;
+  border-radius: ${(p) => p.$radius}px 0 0 ${(p) => p.$radius}px;
   box-shadow: 0 0 0 9999px ${(p) => p.$color};
   pointer-events: none;
   z-index: 10;
@@ -124,10 +125,12 @@ const MaskRects = styled.div`
   left: 0;
   width: ${(p) => p.$maskWidth}px;
   height: 100%;
+  box-sizing: border-box;
+  padding: ${(p) => p.$padY}px 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-evenly;
+  justify-content: space-between;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
@@ -183,7 +186,8 @@ function useWindowSize() {
 function Simulator({ children, leftMask }) {
   const { width, height } = useWindowSize();
   const isExact = width === SCREEN_WIDTH && height === SCREEN_HEIGHT;
-  const [view, setView] = useState("app");
+  // Current screen: "home", an app id, or "app" for the passed-in default app.
+  const [view, setView] = useState("home");
 
   const mask = { ...LEFT_MASK, ...leftMask };
   const appLeft = mask.offset > 0 ? mask.offset : 0;
@@ -194,12 +198,47 @@ function Simulator({ children, leftMask }) {
     if (name === "home") setView("home");
   };
 
-  const stageContent =
-    view === "home" ? (
-      <HomeScreen onLaunch={() => setView("app")} />
-    ) : (
-      children
+  // Mask squares are centered horizontally in the strip, so their left/right
+  // padding is (offset - width) / 2. Use that same value as the top/bottom
+  // padding and lay them out with space-between, so the first and last squares
+  // have equal padding on the left and top/bottom.
+  const rectCount = MASK_RECTS.icons.length;
+  const rectPad = (appLeft - MASK_RECTS.width) / 2;
+  const rectGap =
+    (SCREEN_HEIGHT - 2 * rectPad - rectCount * MASK_RECTS.height) /
+    (rectCount - 1);
+  const square1Top = rectPad;
+  const square2Bottom = rectPad + MASK_RECTS.height * 2 + rectGap;
+
+  // Home screen grid: row 1's top aligns to mask square 1's top; icons fill the
+  // width across APPS.length columns; icon height spans mask square 1's top to
+  // square 2's bottom (the original tall size). HOME_ROWS rows can exceed the
+  // app area height, so the home screen scrolls. The mask squares sit `maskInset`
+  // left of the app area; the left padding subtracts it to keep gaps equal.
+  const HOME_ROWS = 3;
+  const iconTop = square1Top / UI_SCALE;
+  const maskInset = rectPad / UI_SCALE;
+  const homeGap = iconTop;
+  const homePadLeft = homeGap - maskInset;
+  const iconHeight = (square2Bottom - square1Top) / UI_SCALE;
+
+  let stageContent;
+  if (view === "home") {
+    stageContent = (
+      <HomeScreen
+        onLaunch={(id) => setView(id)}
+        rows={HOME_ROWS}
+        iconHeight={iconHeight}
+        iconRadius={MASK_RECTS.radius / UI_SCALE}
+        gap={homeGap}
+        padLeft={homePadLeft}
+        padTop={iconTop}
+      />
     );
+  } else {
+    const app = getApp(view);
+    stageContent = app ? <app.Component /> : children;
+  }
 
   const screenContent = (
     <>
@@ -208,13 +247,17 @@ function Simulator({ children, leftMask }) {
       </Stage>
       {mask.offset > 0 && (
         <>
-          <LeftMask $offset={mask.offset} $color={mask.color} />
+          <LeftMask
+            $offset={mask.offset}
+            $color={mask.color}
+            $radius={view === "home" ? 0 : APP_RADIUS}
+          />
           <LeftMaskDot
             $left={mask.dotLeft}
             $size={mask.dotSize}
             $color={isExact ? "#000" : "#ff3b30"}
           />
-          <MaskRects $maskWidth={mask.offset}>
+          <MaskRects $maskWidth={mask.offset} $padY={rectPad}>
             {MASK_RECTS.icons.map((name, i) => (
               <MaskRect
                 key={i}
