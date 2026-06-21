@@ -1,7 +1,10 @@
 import React from "react";
 import styled from "styled-components";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { APPS } from "./apps";
+import { useApps } from "./apps/AppsContext";
+
+// Fixed home-grid width; extra apps flow into new (scrollable) rows.
+const COLS = 4;
 
 const Screen = styled.div`
   width: 100%;
@@ -73,19 +76,20 @@ function HomeScreen({
   padLeft = 32,
   padTop = 28,
 }) {
-  const cols = APPS.length;
-  const placeholderCount = Math.max(0, cols * rows - APPS.length);
+  const { apps } = useApps();
+  const minCells = COLS * rows;
+  const placeholderCount = Math.max(0, minCells - apps.length);
   const glyph = iconHeight * 0.42;
 
   return (
     <Screen
-      $cols={cols}
+      $cols={COLS}
       $rowHeight={iconHeight}
       $gap={gap}
       $padLeft={padLeft}
       $padTop={padTop}
     >
-      {APPS.map((app) => (
+      {apps.map((app) => (
         <Tile key={app.id} onClick={() => onLaunch && onLaunch(app.id)}>
           <IconBox $color={app.color} $radius={iconRadius}>
             <FontAwesomeIcon

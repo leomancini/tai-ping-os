@@ -5,9 +5,11 @@ import {
   faHouse,
   faGear,
   faSquare,
+  faWandMagicSparkles,
 } from "@fortawesome/free-solid-svg-icons";
 import HomeScreen from "./HomeScreen";
-import { APPS, getApp } from "./apps";
+import CreatorApp from "./CreatorApp";
+import { useApps } from "./apps/AppsContext";
 
 export const SCREEN_WIDTH = 1600;
 export const SCREEN_HEIGHT = 720;
@@ -33,7 +35,7 @@ export const LEFT_MASK = {
 
 // Four rounded rects spaced evenly down the mask strip, each with an icon.
 export const MASK_RECTS = {
-  icons: ["home", "settings", "placeholder", "placeholder"],
+  icons: ["home", "settings", "creator", "placeholder"],
   width: 88,
   height: 88,
   radius: 24,
@@ -46,6 +48,7 @@ export const MASK_RECTS = {
 const MASK_ICONS = {
   home: faHouse,
   settings: faGear,
+  creator: faWandMagicSparkles,
   placeholder: faSquare,
 };
 
@@ -185,8 +188,9 @@ function useWindowSize() {
 
 function Simulator({ children, leftMask }) {
   const { width, height } = useWindowSize();
+  const { getApp } = useApps();
   const isExact = width === SCREEN_WIDTH && height === SCREEN_HEIGHT;
-  // Current screen: "home", an app id, or "app" for the passed-in default app.
+  // Current screen: "home", "creator", an app id, or "app" for the default app.
   const [view, setView] = useState("home");
 
   const mask = { ...LEFT_MASK, ...leftMask };
@@ -196,6 +200,7 @@ function Simulator({ children, leftMask }) {
   // Map each mask button to an action.
   const onMaskTap = (name) => {
     if (name === "home") setView("home");
+    else if (name === "creator") setView("creator");
   };
 
   // Mask squares are centered horizontally in the strip, so their left/right
@@ -235,6 +240,8 @@ function Simulator({ children, leftMask }) {
         padTop={iconTop}
       />
     );
+  } else if (view === "creator") {
+    stageContent = <CreatorApp onLaunch={(id) => setView(id)} />;
   } else {
     const app = getApp(view);
     stageContent = app ? <app.Component /> : children;
