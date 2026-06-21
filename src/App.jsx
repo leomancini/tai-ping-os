@@ -5,7 +5,8 @@ const Page = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   font-size: 24px;
   color: #333;
 `;
