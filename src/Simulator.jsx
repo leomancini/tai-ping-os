@@ -217,7 +217,7 @@ const ToggleLink = styled.button`
   padding: 0;
   font: inherit;
   letter-spacing: inherit;
-  color: #0a84ff;
+  color: #888;
   cursor: pointer;
   &:hover {
     text-decoration: underline;
@@ -431,15 +431,6 @@ function Simulator({ children, leftMask }) {
 
   return (
     <Backdrop>
-      <Label>
-        <span>
-          Simulator · {SCREEN_WIDTH} × {SCREEN_HEIGHT}
-          {scale < 1 ? ` · ${Math.round(scale * 100)}%` : ""}
-        </span>
-        <ToggleLink onClick={() => setShowCamera((v) => !v)}>
-          {showCamera ? "Hide camera cutout" : "Show camera cutout"}
-        </ToggleLink>
-      </Label>
       <div
         style={{
           width: SCREEN_WIDTH * scale,
@@ -465,6 +456,16 @@ function Simulator({ children, leftMask }) {
           </Screen>
         </div>
       </div>
+      <Label>
+        <span>
+          Simulator · {SCREEN_WIDTH} × {SCREEN_HEIGHT}
+          {scale < 1 ? ` · ${Math.round(scale * 100)}%` : ""}
+        </span>
+        <span aria-hidden="true">·</span>
+        <ToggleLink onClick={() => setShowCamera((v) => !v)}>
+          {showCamera ? "Hide camera cutout" : "Show camera cutout"}
+        </ToggleLink>
+      </Label>
     </Backdrop>
   );
 }
