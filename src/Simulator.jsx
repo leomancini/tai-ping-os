@@ -19,7 +19,7 @@ export const SCREEN_HEIGHT = 720;
 export const UI_SCALE = 2;
 
 // Corner rounding on the app's left edge (top-left + bottom-left), all modes.
-export const APP_RADIUS = 56;
+export const APP_RADIUS = 72;
 const LOGICAL_HEIGHT = SCREEN_HEIGHT / UI_SCALE;
 
 // Black mask down the left of the app. `offset` is the black strip width in
@@ -38,7 +38,7 @@ export const MASK_RECTS = {
   icons: ["home", "settings", "creator", "placeholder"],
   width: 88,
   height: 88,
-  radius: 24,
+  radius: 32,
   color: "#333",
   iconSize: 44,
   iconColor: "#fff",
