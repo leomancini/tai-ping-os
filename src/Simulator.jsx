@@ -408,10 +408,15 @@ function Simulator({ children, leftMask }) {
     // Space available in the screen's own (pre-rotation) coordinates.
     const availW = portrait ? height : width;
     const availH = portrait ? width : height;
-    const scale = Math.min(availW / SCREEN_WIDTH, availH / SCREEN_HEIGHT);
+    const rawScale = Math.min(availW / SCREEN_WIDTH, availH / SCREEN_HEIGHT);
+    // Snap the scaled screen to whole device pixels (per axis) so the rounded
+    // corners land on the pixel grid instead of being clipped a fraction short
+    // under the fractional transform.
+    const scaleX = Math.round(SCREEN_WIDTH * rawScale) / SCREEN_WIDTH;
+    const scaleY = Math.round(SCREEN_HEIGHT * rawScale) / SCREEN_HEIGHT;
     const transform = portrait
-      ? `rotate(90deg) scale(${scale})`
-      : `scale(${scale})`;
+      ? `rotate(90deg) scale(${scaleX}, ${scaleY})`
+      : `scale(${scaleX}, ${scaleY})`;
     return (
       <div
         style={{
