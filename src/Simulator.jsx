@@ -189,7 +189,10 @@ function useWindowSize() {
 function Simulator({ children, leftMask }) {
   const { width, height } = useWindowSize();
   const { getApp } = useApps();
-  const isExact = width === SCREEN_WIDTH && height === SCREEN_HEIGHT;
+  // On the physical device, the page is loaded with ?onDevice=true and rendered
+  // full-bleed. Anywhere else, render in the scaled-down simulator.
+  const onDevice =
+    new URLSearchParams(window.location.search).get("onDevice") === "true";
   // Current screen: "home", "creator", an app id, or "app" for the default app.
   const [view, setView] = useState("home");
 
@@ -262,7 +265,7 @@ function Simulator({ children, leftMask }) {
           <LeftMaskDot
             $left={mask.dotLeft}
             $size={mask.dotSize}
-            $color={isExact ? "#000" : "#ff3b30"}
+            $color={onDevice ? "#000" : "#ff3b30"}
           />
           <MaskRects $maskWidth={mask.offset} $padY={rectPad}>
             {MASK_RECTS.icons.map((name, i) => (
@@ -287,8 +290,8 @@ function Simulator({ children, leftMask }) {
     </>
   );
 
-  // Native fit: window is already 1600x720, render the screen full-bleed.
-  if (isExact) {
+  // On device: render the screen full-bleed.
+  if (onDevice) {
     return <Screen style={{ boxShadow: "none" }}>{screenContent}</Screen>;
   }
 
