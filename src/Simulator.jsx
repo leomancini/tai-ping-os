@@ -17,6 +17,7 @@ import {
   SCREEN_RADIUS,
   SCREEN_INSET,
   CONTENT_WIDTH,
+  CONTENT_WIDTH_ON_DEVICE,
   CONTENT_HEIGHT,
   APP_RADIUS,
   ICON_RADIUS,
@@ -95,7 +96,7 @@ const Content = styled.div`
   position: absolute;
   top: ${(p) => p.$top}px;
   left: ${SCREEN_INSET}px;
-  width: ${CONTENT_WIDTH}px;
+  width: ${(p) => p.$w}px;
   height: ${(p) => p.$h}px;
   overflow: hidden;
   background: #000;
@@ -254,8 +255,10 @@ function Simulator({ children, leftMask }) {
   const [view, setView] = useState("home");
 
   const mask = { ...LEFT_MASK, ...leftMask };
+  // The right margin is a touch wider on the physical device only.
+  const contentWidth = onDevice ? CONTENT_WIDTH_ON_DEVICE : CONTENT_WIDTH;
   const appLeft = mask.offset > 0 ? mask.offset : 0;
-  const stageWidth = (CONTENT_WIDTH - appLeft) / UI_SCALE;
+  const stageWidth = (contentWidth - appLeft) / UI_SCALE;
 
   // Map each mask button to an action.
   const onMaskTap = (name) => {
@@ -323,7 +326,12 @@ function Simulator({ children, leftMask }) {
 
   const screenContent = (
     <>
-      <Content $top={contentTop} $h={contentHeight} $radius={contentRadius}>
+      <Content
+        $top={contentTop}
+        $h={contentHeight}
+        $radius={contentRadius}
+        $w={contentWidth}
+      >
         <Stage $left={appLeft} $w={stageWidth} $h={stageHeight}>
           {stageContent}
         </Stage>

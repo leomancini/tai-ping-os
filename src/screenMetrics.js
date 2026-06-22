@@ -27,13 +27,16 @@ export const concentric = (radius) => Math.max(0, radius - SCREEN_INSET);
 // Base corner radius of the OS home-screen app icons / sidebar tiles (physical px).
 export const ICON_RADIUS = 32;
 
-// Content area after the inset (left uses SCREEN_INSET, right uses the larger
-// SCREEN_INSET_RIGHT, so the right margin is a touch wider).
-export const CONTENT_WIDTH = SCREEN_WIDTH - SCREEN_INSET - SCREEN_INSET_RIGHT;
+// Content area after the inset. Default (simulator) is symmetric; on the
+// physical device the right edge uses the larger SCREEN_INSET_RIGHT.
+export const CONTENT_WIDTH = SCREEN_WIDTH - 2 * SCREEN_INSET;
+export const CONTENT_WIDTH_ON_DEVICE =
+  SCREEN_WIDTH - SCREEN_INSET - SCREEN_INSET_RIGHT;
 export const CONTENT_HEIGHT = SCREEN_HEIGHT - 2 * SCREEN_INSET;
 
-// The app's content corner, concentric inside the screen's outer corner.
-export const APP_RADIUS = concentric(SCREEN_RADIUS);
+// The app's content corner, concentric inside the screen's outer corner, then
+// tightened by 2px.
+export const APP_RADIUS = Math.max(0, concentric(SCREEN_RADIUS) - 2);
 
 // The logical (in-app) corner radius generated apps should default to: the OS
 // app-icon radius, made concentric for the current inset and converted to the
