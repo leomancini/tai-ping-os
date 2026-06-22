@@ -338,7 +338,7 @@ function Simulator({ children, leftMask }) {
   const bottomInset = onDevice ? 10 : SCREEN_INSET;
   const contentTop = bleed ? 0 : SCREEN_INSET;
   const contentHeight = bleed
-    ? SCREEN_HEIGHT - (onDevice ? bottomInset : 0)
+    ? SCREEN_HEIGHT
     : SCREEN_HEIGHT - SCREEN_INSET - bottomInset;
   const contentRadius = bleed ? 0 : APP_RADIUS;
   const stageHeight = contentHeight / UI_SCALE;
