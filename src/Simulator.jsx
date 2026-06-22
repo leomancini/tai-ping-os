@@ -66,6 +66,7 @@ const MASK_ICONS = {
 
 // Backdrop shown around the simulated screen when the window isn't an exact match.
 const Backdrop = styled.div`
+  position: relative;
   width: 100vw;
   height: 100vh;
   margin: 0;
@@ -201,6 +202,11 @@ const MaskChrome = styled.div`
 `;
 
 const Label = styled.div`
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  justify-content: center;
   display: flex;
   align-items: center;
   gap: 14px;
