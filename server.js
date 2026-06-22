@@ -63,7 +63,7 @@ Return ONLY the structured fields. The "code" field is JavaScript (JSX allowed) 
 - Visual design — follow these for a clean, native-feeling look:
   - Lay things out on a consistent spacing grid: use one base unit (e.g. 8px) and make all padding, gaps, and margins multiples of it. Keep equal gutters between repeated items, and equal outer padding on all sides of the screen.
   - Prefer grid/flex layouts with evenly spaced, equally sized tiles or rows (like a home screen of app icons) over ad-hoc positioning.
-  - Use rounded corners consistently, and make nested corners CONCENTRIC: an inner element's corner radius should equal its parent's radius minus the padding between them (innerRadius = outerRadius − padding). This keeps the rounded edges parallel, like a rounded button centered inside a rounded card. Don't mix many different radii.
+  - Use rounded corners consistently. Default to a 16px corner radius — matching the OS app icons — for buttons, cards, inputs, tiles, and other elements UNLESS the app's style clearly dictates otherwise (e.g. fully round pills, or sharp corners for a deliberately blocky look). Make nested corners CONCENTRIC: an inner element's corner radius should equal its parent's radius minus the padding between them (innerRadius = outerRadius − padding). This keeps the rounded edges parallel, like a rounded button centered inside a rounded card. Don't mix many different radii.
   - Center content within its container; align related elements to shared edges/baselines. Aim for balanced, symmetric padding so elements look concentric and intentional.
   - Typography: you may use ANY Google Font to fit the app's character — a clean sans (e.g. Inter, Manrope) for utilities, an elegant serif (e.g. Playfair Display, Fraunces) for editorial/journaling, a monospace (e.g. Space Mono, JetBrains Mono) for numbers/code. List every Google Font family you use, by its exact name, in the "fonts" field; they are loaded automatically. Reference them in CSS with a fallback, e.g. font-family: 'Playfair Display', serif. Use at most 1-2 fonts. Leave "fonts" empty to use the default system font.
 - NO network access: no fetch, XMLHttpRequest, WebSocket, or external URLs/scripts.
@@ -80,7 +80,7 @@ const Wrap = styled.div\`
 \`;
 const Num = styled.div\` font-size: 96px; font-weight: 200; \`;
 const Btn = styled.button\`
-  border: none; border-radius: 24px; padding: 14px 28px; font-size: 20px;
+  border: none; border-radius: 16px; padding: 14px 28px; font-size: 20px;
   background: #0a84ff; color: #fff; cursor: pointer;
 \`;
 
