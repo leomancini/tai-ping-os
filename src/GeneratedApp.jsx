@@ -61,6 +61,17 @@ function Runner({ factory, storage }) {
   return <App />;
 }
 
+// Scroll container for a generated app. The main page is scroll-locked, so this
+// is where generated apps opt back into scrolling when their content overflows.
+const Scroll = styled.div`
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+`;
+
 const ErrorWrap = styled.div`
   width: 100%;
   height: 100%;
@@ -133,9 +144,11 @@ function GeneratedApp({ code, storage, fonts }) {
   }
 
   return (
-    <Boundary resetKey={code}>
-      <Runner factory={factory} storage={storage} />
-    </Boundary>
+    <Scroll>
+      <Boundary resetKey={code}>
+        <Runner factory={factory} storage={storage} />
+      </Boundary>
+    </Scroll>
   );
 }
 

@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHouse,
   faGear,
-  faSquare,
+  faArrowsRotate,
   faWandMagicSparkles,
 } from "@fortawesome/free-solid-svg-icons";
 import HomeScreen from "./HomeScreen";
@@ -35,7 +35,7 @@ export const LEFT_MASK = {
 
 // Four rounded rects spaced evenly down the mask strip, each with an icon.
 export const MASK_RECTS = {
-  icons: ["home", "settings", "creator", "placeholder"],
+  icons: ["home", "settings", "creator", "refresh"],
   width: 88,
   height: 88,
   radius: 32,
@@ -49,7 +49,7 @@ const MASK_ICONS = {
   home: faHouse,
   settings: faGear,
   creator: faWandMagicSparkles,
-  placeholder: faSquare,
+  refresh: faArrowsRotate,
 };
 
 // Backdrop shown around the simulated screen when the window isn't an exact match.
@@ -204,6 +204,7 @@ function Simulator({ children, leftMask }) {
   const onMaskTap = (name) => {
     if (name === "home") setView("home");
     else if (name === "creator") setView("creator");
+    else if (name === "refresh") window.location.reload();
   };
 
   // Mask squares are centered horizontally in the strip, so their left/right
