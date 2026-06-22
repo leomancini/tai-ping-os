@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { faNoteSticky } from "@fortawesome/free-solid-svg-icons";
+
+const STORAGE_KEY = "taiping.notes";
 
 export const meta = {
   id: "notes",
@@ -40,7 +42,16 @@ const Area = styled.textarea`
 `;
 
 function Notes() {
-  const [text, setText] = useState("Tap to edit…\n");
+  const [text, setText] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved !== null ? saved : "Tap to edit…\n";
+  });
+
+  // Persist locally on every change so notes survive reloads.
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, text);
+  }, [text]);
+
   return (
     <Wrap>
       <Header>Notes</Header>
