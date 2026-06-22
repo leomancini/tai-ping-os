@@ -15,7 +15,7 @@ export const SCREEN_RADIUS = 72;
 // Inset (physical px) applied around ALL screen contents. Increasing it pushes
 // every edge inward and, to keep corners concentric, reduces every border
 // radius by the same amount (see `concentric` below).
-export const SCREEN_INSET = 4;
+export const SCREEN_INSET = 8;
 
 // Reduce a radius by the inset so nested corners stay concentric with the
 // screen's outer corner. Clamped so a large inset can't go negative.
