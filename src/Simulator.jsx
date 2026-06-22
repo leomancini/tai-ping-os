@@ -100,10 +100,6 @@ const Content = styled.div`
   overflow: hidden;
   background: #000;
   border-radius: ${(p) => p.$radius}px;
-  /* Promote to its own compositing layer so the rounded-corner clip rasterizes
-     without a sub-pixel seam at the top/bottom edges when the screen is scaled. */
-  transform: translateZ(0);
-  backface-visibility: hidden;
 `;
 
 // Logical canvas the app is authored on, scaled up to fill the available area
@@ -186,6 +182,20 @@ const MaskRect = styled.button`
   &:active {
     filter: brightness(1.4);
   }
+`;
+
+// Constant-position layer for the mask icons + camera dot. It sits over the
+// strip and does NOT move when the app area bleeds/insets between views, so the
+// sidebar icons stay put when an app opens. (The black strip itself stays with
+// the app in <Content> so it can round the app's left corners.)
+const MaskChrome = styled.div`
+  position: absolute;
+  top: 0;
+  left: ${SCREEN_INSET}px;
+  width: ${(p) => p.$w}px;
+  height: ${CONTENT_HEIGHT}px;
+  pointer-events: none;
+  z-index: 12;
 `;
 
 const Label = styled.div`
@@ -307,17 +317,21 @@ function Simulator({ children, leftMask }) {
   const stageHeight = contentHeight / UI_SCALE;
 
   const screenContent = (
-    <Content $top={contentTop} $h={contentHeight} $radius={contentRadius}>
-      <Stage $left={appLeft} $w={stageWidth} $h={stageHeight}>
-        {stageContent}
-      </Stage>
-      {mask.offset > 0 && (
-        <>
+    <>
+      <Content $top={contentTop} $h={contentHeight} $radius={contentRadius}>
+        <Stage $left={appLeft} $w={stageWidth} $h={stageHeight}>
+          {stageContent}
+        </Stage>
+        {mask.offset > 0 && (
           <LeftMask
             $offset={mask.offset}
             $color={mask.color}
             $radius={view === "home" ? 0 : APP_RADIUS}
           />
+        )}
+      </Content>
+      {mask.offset > 0 && (
+        <MaskChrome $w={mask.offset}>
           {showCamera && (
             <LeftMaskDot
               $left={mask.dotLeft}
@@ -343,9 +357,9 @@ function Simulator({ children, leftMask }) {
               </MaskRect>
             ))}
           </MaskRects>
-        </>
+        </MaskChrome>
       )}
-    </Content>
+    </>
   );
 
   // On device: fill the screen. The device WebView reports a portrait CSS
@@ -374,7 +388,15 @@ function Simulator({ children, leftMask }) {
         }}
       >
         <div
-          style={{ flex: "none", transform, transformOrigin: "center center" }}
+          style={{
+            flex: "none",
+            transform,
+            transformOrigin: "center center",
+            // Composite the whole transformed subtree as one layer so the
+            // rounded-corner clips rasterize once, not per nested transform.
+            willChange: "transform",
+            backfaceVisibility: "hidden",
+          }}
         >
           <Screen style={{ boxShadow: "none" }}>{screenContent}</Screen>
         </div>
@@ -409,7 +431,14 @@ function Simulator({ children, leftMask }) {
           flex: "none",
         }}
       >
-        <div style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}>
+        <div
+          style={{
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+            willChange: "transform",
+            backfaceVisibility: "hidden",
+          }}
+        >
           <Screen
             style={{
               borderRadius: SCREEN_RADIUS,
