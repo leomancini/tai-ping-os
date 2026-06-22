@@ -40,7 +40,7 @@ export const LEFT_MASK = {
   offset: 160,
   color: "#000",
   // Red dot's left edge position in physical px from the screen's left.
-  dotLeft: 16,
+  dotLeft: 4,
   // Red dot diameter in physical px.
   dotSize: 60,
 };
