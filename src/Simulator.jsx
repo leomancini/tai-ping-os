@@ -160,14 +160,27 @@ const MaskRect = styled.button`
 `;
 
 const Label = styled.div`
-  position: absolute;
-  top: 16px;
-  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
   color: #888;
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
+`;
+
+const ToggleLink = styled.button`
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: #0a84ff;
+  cursor: pointer;
+  &:hover {
+    text-decoration: underline;
+  }
 `;
 
 function useWindowSize() {
@@ -193,8 +206,11 @@ function Simulator({ children, leftMask }) {
   // full-bleed. Anywhere else, render in the scaled-down simulator.
   const params = new URLSearchParams(window.location.search);
   const onDevice = params.get("onDevice") === "true";
-  // The red camera dot in the left mask is hidden unless ?showCamera=true.
-  const showCamera = params.get("showCamera") === "true";
+  // The red camera dot in the left mask is hidden unless ?showCamera=true, and
+  // can be toggled from the simulator chrome.
+  const [showCamera, setShowCamera] = useState(
+    params.get("showCamera") === "true"
+  );
   // Current screen: "home", "creator", an app id, or "app" for the default app.
   const [view, setView] = useState("home");
 
@@ -341,8 +357,13 @@ function Simulator({ children, leftMask }) {
   return (
     <Backdrop>
       <Label>
-        Simulator · {SCREEN_WIDTH} × {SCREEN_HEIGHT}
-        {scale < 1 ? ` · ${Math.round(scale * 100)}%` : ""}
+        <span>
+          Simulator · {SCREEN_WIDTH} × {SCREEN_HEIGHT}
+          {scale < 1 ? ` · ${Math.round(scale * 100)}%` : ""}
+        </span>
+        <ToggleLink onClick={() => setShowCamera((v) => !v)}>
+          {showCamera ? "Hide camera cutout" : "Show camera cutout"}
+        </ToggleLink>
       </Label>
       <div
         style={{
