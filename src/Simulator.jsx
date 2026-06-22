@@ -93,14 +93,17 @@ const Screen = styled.div`
 // stage, the left mask, the icons) is laid out in this box's coordinates.
 const Content = styled.div`
   position: absolute;
-  top: ${(p) => p.$top}px;
+  top: ${SCREEN_INSET}px;
   left: ${SCREEN_INSET}px;
   width: ${CONTENT_WIDTH}px;
-  height: ${(p) => p.$h}px;
+  height: ${CONTENT_HEIGHT}px;
   overflow: hidden;
   background: #000;
-  border-radius: ${(p) => p.$radius}px;
+  border-radius: ${APP_RADIUS}px;
 `;
+
+// The app's logical canvas height inside the inset content area.
+const LOGICAL_HEIGHT = CONTENT_HEIGHT / UI_SCALE;
 
 // Logical canvas the app is authored on, scaled up to fill the available area
 // (the content minus the left mask) and pinned to its right of the mask.
@@ -109,7 +112,7 @@ const Stage = styled.div`
   top: 0;
   left: ${(p) => p.$left}px;
   width: ${(p) => p.$w}px;
-  height: ${(p) => p.$h}px;
+  height: ${LOGICAL_HEIGHT}px;
   background: #000;
   transform: scale(${UI_SCALE});
   transform-origin: top left;
@@ -152,7 +155,7 @@ const MaskRects = styled.div`
   top: 0;
   left: 0;
   width: ${(p) => p.$maskWidth}px;
-  height: ${CONTENT_HEIGHT}px;
+  height: 100%;
   box-sizing: border-box;
   padding: ${(p) => p.$padY}px 0;
   display: flex;
@@ -182,20 +185,6 @@ const MaskRect = styled.button`
   &:active {
     filter: brightness(1.4);
   }
-`;
-
-// Constant-position layer for the mask icons + camera dot. It sits over the
-// strip and does NOT move when the app area bleeds/insets between views, so the
-// sidebar icons stay put when an app opens. (The black strip itself stays with
-// the app in <Content> so it can round the app's left corners.)
-const MaskChrome = styled.div`
-  position: absolute;
-  top: 0;
-  left: ${SCREEN_INSET}px;
-  width: ${(p) => p.$w}px;
-  height: ${CONTENT_HEIGHT}px;
-  pointer-events: none;
-  z-index: 12;
 `;
 
 const Label = styled.div`
@@ -299,6 +288,7 @@ function Simulator({ children, leftMask }) {
         gap={homeGap}
         padLeft={homePadLeft}
         padTop={iconTop}
+        padBottom={homeGap + SCREEN_INSET / UI_SCALE}
       />
     );
   } else if (view === "creator") {
@@ -308,30 +298,18 @@ function Simulator({ children, leftMask }) {
     stageContent = app ? <app.Component /> : children;
   }
 
-  // The home screen scrolls flush to the top and bottom screen edges (the inset
-  // isn't applied there); apps keep the inset and rounded corners on all sides.
-  const bleed = view === "home";
-  const contentTop = bleed ? 0 : SCREEN_INSET;
-  const contentHeight = bleed ? SCREEN_HEIGHT : CONTENT_HEIGHT;
-  const contentRadius = bleed ? 0 : APP_RADIUS;
-  const stageHeight = contentHeight / UI_SCALE;
-
   const screenContent = (
-    <>
-      <Content $top={contentTop} $h={contentHeight} $radius={contentRadius}>
-        <Stage $left={appLeft} $w={stageWidth} $h={stageHeight}>
-          {stageContent}
-        </Stage>
-        {mask.offset > 0 && (
+    <Content>
+      <Stage $left={appLeft} $w={stageWidth}>
+        {stageContent}
+      </Stage>
+      {mask.offset > 0 && (
+        <>
           <LeftMask
             $offset={mask.offset}
             $color={mask.color}
             $radius={view === "home" ? 0 : APP_RADIUS}
           />
-        )}
-      </Content>
-      {mask.offset > 0 && (
-        <MaskChrome $w={mask.offset}>
           {showCamera && (
             <LeftMaskDot
               $left={mask.dotLeft}
@@ -357,9 +335,9 @@ function Simulator({ children, leftMask }) {
               </MaskRect>
             ))}
           </MaskRects>
-        </MaskChrome>
+        </>
       )}
-    </>
+    </Content>
   );
 
   // On device: fill the screen. The device WebView reports a portrait CSS

@@ -10,7 +10,7 @@ const Screen = styled.div`
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-  padding: ${(p) => p.$padTop}px ${(p) => p.$gap}px ${(p) => p.$gap}px
+  padding: ${(p) => p.$padTop}px ${(p) => p.$gap}px ${(p) => p.$padBottom}px
     ${(p) => p.$padLeft}px;
   background: #000;
   display: grid;
@@ -77,6 +77,7 @@ function HomeScreen({
   gap = 28,
   padLeft = 32,
   padTop = 28,
+  padBottom = 28,
 }) {
   const { apps } = useApps();
   const minCells = COLS * rows;
@@ -90,6 +91,7 @@ function HomeScreen({
       $gap={gap}
       $padLeft={padLeft}
       $padTop={padTop}
+      $padBottom={padBottom}
     >
       {apps.map((app) => (
         <Tile key={app.id} onClick={() => onLaunch && onLaunch(app.id)}>
