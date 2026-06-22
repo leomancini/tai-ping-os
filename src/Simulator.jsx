@@ -191,8 +191,10 @@ function Simulator({ children, leftMask }) {
   const { getApp } = useApps();
   // On the physical device, the page is loaded with ?onDevice=true and rendered
   // full-bleed. Anywhere else, render in the scaled-down simulator.
-  const onDevice =
-    new URLSearchParams(window.location.search).get("onDevice") === "true";
+  const params = new URLSearchParams(window.location.search);
+  const onDevice = params.get("onDevice") === "true";
+  // The red camera dot in the left mask is hidden unless ?showCamera=true.
+  const showCamera = params.get("showCamera") === "true";
   // Current screen: "home", "creator", an app id, or "app" for the default app.
   const [view, setView] = useState("home");
 
@@ -263,11 +265,13 @@ function Simulator({ children, leftMask }) {
             $color={mask.color}
             $radius={view === "home" ? 0 : APP_RADIUS}
           />
-          <LeftMaskDot
-            $left={mask.dotLeft}
-            $size={mask.dotSize}
-            $color={onDevice ? "#000" : "#ff3b30"}
-          />
+          {showCamera && (
+            <LeftMaskDot
+              $left={mask.dotLeft}
+              $size={mask.dotSize}
+              $color={onDevice ? "#000" : "#ff3b30"}
+            />
+          )}
           <MaskRects $maskWidth={mask.offset} $padY={rectPad}>
             {MASK_RECTS.icons.map((name, i) => (
               <MaskRect
