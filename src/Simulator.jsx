@@ -11,7 +11,6 @@ import HomeScreen from "./HomeScreen";
 import CreatorApp from "./CreatorApp";
 import SettingsApp from "./SettingsApp";
 import { useApps } from "./apps/AppsContext";
-import { useAuth } from "./auth";
 import {
   SCREEN_WIDTH,
   SCREEN_HEIGHT,
@@ -181,12 +180,11 @@ const MaskRect = styled.button`
   border-radius: ${(p) => p.$r}px;
   background: ${(p) => p.$color};
   pointer-events: auto;
-  cursor: ${(p) => (p.$disabled ? "default" : "pointer")};
-  opacity: ${(p) => (p.$disabled ? 0.35 : 1)};
+  cursor: pointer;
   transition: filter 0.12s ease;
 
   &:active {
-    filter: ${(p) => (p.$disabled ? "none" : "brightness(1.4)")};
+    filter: brightness(1.4);
   }
 `;
 
@@ -252,11 +250,6 @@ function useWindowSize() {
 function Simulator({ children, leftMask }) {
   const { width, height } = useWindowSize();
   const { getApp } = useApps();
-  const auth = useAuth();
-  // Demo mode: authenticated, but anything requiring secrets (app generation,
-  // settings/full name) is disabled.
-  const demo = !!auth?.demo;
-  const isLocked = (name) => demo && (name === "settings" || name === "creator");
   // On the physical device, the page is loaded with ?onDevice=true and rendered
   // full-bleed. Anywhere else, render in the scaled-down simulator.
   const params = new URLSearchParams(window.location.search);
@@ -277,7 +270,6 @@ function Simulator({ children, leftMask }) {
 
   // Map each mask button to an action.
   const onMaskTap = (name) => {
-    if (isLocked(name)) return; // disabled in demo mode
     if (name === "home") setView("home");
     else if (name === "settings") setView("settings");
     else if (name === "creator") setView("creator");
@@ -308,10 +300,8 @@ function Simulator({ children, leftMask }) {
   const homePadLeft = homeGap - maskInset;
   const iconHeight = (square2Bottom - square1Top) / UI_SCALE;
 
-  // Safety: never show secret-backed views in demo mode.
-  const effectiveView = isLocked(view) ? "home" : view;
   let stageContent;
-  if (effectiveView === "home") {
+  if (view === "home") {
     stageContent = (
       <HomeScreen
         onLaunch={(id) => setView(id)}
@@ -324,12 +314,12 @@ function Simulator({ children, leftMask }) {
         padBottom={homeGap + SCREEN_INSET / UI_SCALE}
       />
     );
-  } else if (effectiveView === "creator") {
+  } else if (view === "creator") {
     stageContent = <CreatorApp onLaunch={(id) => setView(id)} />;
-  } else if (effectiveView === "settings") {
+  } else if (view === "settings") {
     stageContent = <SettingsApp />;
   } else {
-    const app = getApp(effectiveView);
+    const app = getApp(view);
     stageContent = app ? <app.Component /> : children;
   }
 
@@ -339,7 +329,7 @@ function Simulator({ children, leftMask }) {
   // (see padTop/padBottom above), so home still reads as inset at rest. Apps keep
   // the inset and rounded corners on all sides; the sidebar stays inset via
   // MaskChrome.
-  const bleed = effectiveView === "home";
+  const bleed = view === "home";
   // Trim 2px of height off the bottom on the physical device only.
   const bottomExtra = onDevice ? SCREEN_INSET_BOTTOM - SCREEN_INSET : 0;
   const contentTop = bleed ? 0 : SCREEN_INSET;
@@ -362,7 +352,7 @@ function Simulator({ children, leftMask }) {
           <LeftMask
             $offset={mask.offset}
             $color={mask.color}
-            $radius={effectiveView === "home" ? 0 : APP_RADIUS}
+            $radius={view === "home" ? 0 : APP_RADIUS}
           />
         )}
       </Content>
@@ -380,7 +370,6 @@ function Simulator({ children, leftMask }) {
               <MaskRect
                 key={i}
                 onClick={() => onMaskTap(name)}
-                $disabled={isLocked(name)}
                 $w={MASK_RECTS.width}
                 $h={MASK_RECTS.height}
                 $r={concentric(MASK_RECTS.radius)}

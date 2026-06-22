@@ -50,7 +50,7 @@ function SettingsApp() {
       <Title>Settings</Title>
       <Row>
         <Key>Signed in as</Key>
-        <Value>{auth?.fullName || "—"}</Value>
+        <Value>{auth?.fullName || auth?.label || "—"}</Value>
       </Row>
     </Screen>
   );

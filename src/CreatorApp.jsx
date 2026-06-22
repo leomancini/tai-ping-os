@@ -143,6 +143,8 @@ async function generate(body, key) {
 function CreatorApp({ onLaunch }) {
   const { userApps, createApp, updateApp, removeApp } = useApps();
   const auth = useAuth();
+  const demo = !!auth?.demo;
+  const DEMO_MSG = "App generation is disabled in demo mode.";
   const [prompt, setPrompt] = useState("");
   const [editing, setEditing] = useState(null); // app entry being edited
   const [editPrompt, setEditPrompt] = useState("");
@@ -150,6 +152,10 @@ function CreatorApp({ onLaunch }) {
   const [error, setError] = useState(null);
 
   const handleCreate = async () => {
+    if (demo) {
+      window.alert(DEMO_MSG);
+      return;
+    }
     if (!prompt.trim() || busy) return;
     setBusy(true);
     setError(null);
@@ -174,6 +180,10 @@ function CreatorApp({ onLaunch }) {
   };
 
   const handleUpdate = async () => {
+    if (demo) {
+      window.alert(DEMO_MSG);
+      return;
+    }
     if (!editPrompt.trim() || busy || !editing) return;
     setBusy(true);
     setError(null);
@@ -210,7 +220,10 @@ function CreatorApp({ onLaunch }) {
         />
         {error && <Error>{error}</Error>}
         <Row>
-          <Button onClick={handleUpdate} disabled={busy || !editPrompt.trim()}>
+          <Button
+            onClick={handleUpdate}
+            disabled={busy || (!demo && !editPrompt.trim())}
+          >
             {busy ? "Updating…" : "Update app"}
           </Button>
           <Button
@@ -242,7 +255,10 @@ function CreatorApp({ onLaunch }) {
       />
       {error && <Error>{error}</Error>}
       <Row>
-        <Button onClick={handleCreate} disabled={busy || !prompt.trim()}>
+        <Button
+          onClick={handleCreate}
+          disabled={busy || (!demo && !prompt.trim())}
+        >
           {busy ? "Creating…" : "Create app"}
         </Button>
       </Row>
