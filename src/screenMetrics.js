@@ -10,7 +10,7 @@ export const SCREEN_HEIGHT = 720;
 export const UI_SCALE = 2;
 
 // Outer rounded-corner radius of the physical screen (physical px).
-export const SCREEN_RADIUS = 72;
+export const SCREEN_RADIUS = 70;
 
 // Inset (physical px) applied around ALL screen contents. Increasing it pushes
 // every edge inward and, to keep corners concentric, reduces every border
@@ -22,7 +22,7 @@ export const SCREEN_INSET = 8;
 export const concentric = (radius) => Math.max(0, radius - SCREEN_INSET);
 
 // Base corner radius of the OS home-screen app icons / sidebar tiles (physical px).
-export const ICON_RADIUS = 30;
+export const ICON_RADIUS = 32;
 
 // Content area after the inset.
 export const CONTENT_WIDTH = SCREEN_WIDTH - 2 * SCREEN_INSET;
