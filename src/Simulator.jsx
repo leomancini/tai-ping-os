@@ -333,9 +333,9 @@ function Simulator({ children, leftMask }) {
   // the inset and rounded corners on all sides; the sidebar stays inset via
   // MaskChrome.
   const bleed = view === "home";
-  // On device the app sits 6px from the bottom edge (standard inset elsewhere);
+  // On device the app sits 8px from the bottom edge (standard inset elsewhere);
   // the app extends down to fill it rather than being shrunk.
-  const bottomInset = onDevice ? 6 : SCREEN_INSET;
+  const bottomInset = onDevice ? 8 : SCREEN_INSET;
   const contentTop = bleed ? 0 : SCREEN_INSET;
   const contentHeight = bleed
     ? SCREEN_HEIGHT - (onDevice ? bottomInset : 0)
