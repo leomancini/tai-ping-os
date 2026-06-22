@@ -44,19 +44,6 @@ const Field = styled.input`
   outline: none;
 `;
 
-const Button = styled.button`
-  border: none;
-  border-radius: 10px;
-  padding: 12px 16px;
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  color: #fff;
-  background: #0a84ff;
-  cursor: pointer;
-  opacity: ${(p) => (p.disabled ? 0.5 : 1)};
-`;
-
 function readInitialKey() {
   const fromUrl = new URLSearchParams(window.location.search).get("key");
   if (fromUrl) return fromUrl;
@@ -124,10 +111,6 @@ export function AuthGate({ children }) {
     return (
       <Center>
         <Card>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>Tai Ping OS</div>
-          <div style={{ fontSize: 14, color: "#6b6b6b" }}>
-            Enter your access key (or add <code>?key=…</code> to the URL).
-          </div>
           <Field
             type="password"
             placeholder="Access key"
@@ -136,9 +119,6 @@ export function AuthGate({ children }) {
             onKeyDown={(e) => e.key === "Enter" && go()}
             autoFocus
           />
-          <Button onClick={go} disabled={!entry.trim()}>
-            Enter
-          </Button>
         </Card>
       </Center>
     );
