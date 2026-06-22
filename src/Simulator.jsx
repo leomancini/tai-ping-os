@@ -18,8 +18,8 @@ import {
   SCREEN_RADIUS,
   SCREEN_INSET,
   SCREEN_INSET_BOTTOM,
+  SCREEN_INSET_RIGHT,
   CONTENT_WIDTH,
-  CONTENT_WIDTH_ON_DEVICE,
   CONTENT_HEIGHT,
   APP_RADIUS,
   ICON_RADIUS,
@@ -98,7 +98,7 @@ const Screen = styled.div`
 const Content = styled.div`
   position: absolute;
   top: ${(p) => p.$top}px;
-  left: ${SCREEN_INSET}px;
+  left: ${(p) => p.$left}px;
   width: ${(p) => p.$w}px;
   height: ${(p) => p.$h}px;
   overflow: hidden;
@@ -194,8 +194,8 @@ const MaskRect = styled.button`
 // stays with the app in <Content> so it can round the app's left corners.)
 const MaskChrome = styled.div`
   position: absolute;
-  top: ${SCREEN_INSET}px;
-  left: ${SCREEN_INSET}px;
+  top: ${(p) => p.$top}px;
+  left: ${(p) => p.$left}px;
   width: ${(p) => p.$w}px;
   height: ${CONTENT_HEIGHT}px;
   pointer-events: none;
@@ -263,8 +263,12 @@ function Simulator({ children, leftMask }) {
   const [view, setView] = useState("home");
 
   const mask = { ...LEFT_MASK, ...leftMask };
-  // The right margin is a touch wider on the physical device only.
-  const contentWidth = onDevice ? CONTENT_WIDTH_ON_DEVICE : CONTENT_WIDTH;
+  // On device, leave a slightly larger gap on the right. Shift the content left
+  // (smaller left inset) rather than shrinking it, so the extra gap goes outside
+  // the app's width without eating into it.
+  const rightExtra = onDevice ? SCREEN_INSET_RIGHT - SCREEN_INSET : 0;
+  const contentLeft = SCREEN_INSET - rightExtra;
+  const contentWidth = CONTENT_WIDTH;
   const appLeft = mask.offset > 0 ? mask.offset : 0;
   const stageWidth = (contentWidth - appLeft) / UI_SCALE;
 
@@ -330,10 +334,12 @@ function Simulator({ children, leftMask }) {
   // the inset and rounded corners on all sides; the sidebar stays inset via
   // MaskChrome.
   const bleed = view === "home";
-  // Trim 2px of height off the bottom on the physical device only.
+  // On device, leave a slightly larger gap below the app. Shift the content up
+  // (smaller top inset) rather than shrinking it, so the extra gap goes below
+  // the border radius without eating into the app's height.
   const bottomExtra = onDevice ? SCREEN_INSET_BOTTOM - SCREEN_INSET : 0;
-  const contentTop = bleed ? 0 : SCREEN_INSET;
-  const contentHeight = (bleed ? SCREEN_HEIGHT : CONTENT_HEIGHT) - bottomExtra;
+  const contentTop = bleed ? 0 : SCREEN_INSET - bottomExtra;
+  const contentHeight = bleed ? SCREEN_HEIGHT - bottomExtra : CONTENT_HEIGHT;
   const contentRadius = bleed ? 0 : APP_RADIUS;
   const stageHeight = contentHeight / UI_SCALE;
 
@@ -341,6 +347,7 @@ function Simulator({ children, leftMask }) {
     <>
       <Content
         $top={contentTop}
+        $left={contentLeft}
         $h={contentHeight}
         $radius={contentRadius}
         $w={contentWidth}
@@ -357,7 +364,11 @@ function Simulator({ children, leftMask }) {
         )}
       </Content>
       {mask.offset > 0 && (
-        <MaskChrome $w={mask.offset}>
+        <MaskChrome
+          $w={mask.offset}
+          $top={bleed ? SCREEN_INSET : contentTop}
+          $left={contentLeft}
+        >
           {showCamera && (
             <LeftMaskDot
               $left={mask.dotLeft}
