@@ -160,6 +160,14 @@ function CreatorApp({ onLaunch }) {
     }
   };
 
+  // Submit on Enter; Shift+Enter inserts a newline.
+  const submitOnEnter = (fn) => (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      fn();
+    }
+  };
+
   const handleUpdate = async () => {
     if (!editPrompt.trim() || busy || !editing) return;
     setBusy(true);
@@ -190,6 +198,7 @@ function CreatorApp({ onLaunch }) {
           placeholder="e.g. add a reset button and make it blue"
           value={editPrompt}
           onChange={(e) => setEditPrompt(e.target.value)}
+          onKeyDown={submitOnEnter(handleUpdate)}
         />
         {error && <Error>{error}</Error>}
         <Row>
@@ -221,6 +230,7 @@ function CreatorApp({ onLaunch }) {
         placeholder="e.g. a tip calculator that remembers the last bill"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
+        onKeyDown={submitOnEnter(handleCreate)}
       />
       {error && <Error>{error}</Error>}
       <Row>
