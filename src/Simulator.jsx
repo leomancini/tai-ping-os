@@ -31,8 +31,6 @@ export {
   SCREEN_INSET,
 };
 
-// The app's logical canvas height inside the inset content area.
-const LOGICAL_HEIGHT = CONTENT_HEIGHT / UI_SCALE;
 
 // Black mask down the left of the app. `offset` is the black strip width in
 // physical px; the app to its right gets rounded top-left/bottom-left corners.
@@ -51,7 +49,7 @@ export const MASK_RECTS = {
   width: 88,
   height: 88,
   radius: ICON_RADIUS,
-  color: "#333",
+  color: "#1c1c1e",
   iconSize: 44,
   iconColor: "#fff",
 };
@@ -95,13 +93,17 @@ const Screen = styled.div`
 // stage, the left mask, the icons) is laid out in this box's coordinates.
 const Content = styled.div`
   position: absolute;
-  top: ${SCREEN_INSET}px;
+  top: ${(p) => p.$top}px;
   left: ${SCREEN_INSET}px;
   width: ${CONTENT_WIDTH}px;
-  height: ${CONTENT_HEIGHT}px;
+  height: ${(p) => p.$h}px;
   overflow: hidden;
   background: #000;
-  border-radius: ${APP_RADIUS}px;
+  border-radius: ${(p) => p.$radius}px;
+  /* Promote to its own compositing layer so the rounded-corner clip rasterizes
+     without a sub-pixel seam at the top/bottom edges when the screen is scaled. */
+  transform: translateZ(0);
+  backface-visibility: hidden;
 `;
 
 // Logical canvas the app is authored on, scaled up to fill the available area
@@ -111,7 +113,7 @@ const Stage = styled.div`
   top: 0;
   left: ${(p) => p.$left}px;
   width: ${(p) => p.$w}px;
-  height: ${LOGICAL_HEIGHT}px;
+  height: ${(p) => p.$h}px;
   background: #000;
   transform: scale(${UI_SCALE});
   transform-origin: top left;
@@ -154,7 +156,7 @@ const MaskRects = styled.div`
   top: 0;
   left: 0;
   width: ${(p) => p.$maskWidth}px;
-  height: 100%;
+  height: ${CONTENT_HEIGHT}px;
   box-sizing: border-box;
   padding: ${(p) => p.$padY}px 0;
   display: flex;
@@ -296,9 +298,17 @@ function Simulator({ children, leftMask }) {
     stageContent = app ? <app.Component /> : children;
   }
 
+  // The home screen scrolls flush to the top and bottom screen edges (the inset
+  // isn't applied there); apps keep the inset and rounded corners on all sides.
+  const bleed = view === "home";
+  const contentTop = bleed ? 0 : SCREEN_INSET;
+  const contentHeight = bleed ? SCREEN_HEIGHT : CONTENT_HEIGHT;
+  const contentRadius = bleed ? 0 : APP_RADIUS;
+  const stageHeight = contentHeight / UI_SCALE;
+
   const screenContent = (
-    <Content>
-      <Stage $left={appLeft} $w={stageWidth}>
+    <Content $top={contentTop} $h={contentHeight} $radius={contentRadius}>
+      <Stage $left={appLeft} $w={stageWidth} $h={stageHeight}>
         {stageContent}
       </Stage>
       {mask.offset > 0 && (

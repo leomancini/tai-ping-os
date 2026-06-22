@@ -52,12 +52,14 @@ const IconBox = styled.div`
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
 `;
 
-// Empty grey app slot.
+// Empty app slot: black fill with an inner dashed dark-gray border.
 const Placeholder = styled.div`
   width: 100%;
   height: 100%;
+  box-sizing: border-box;
   border-radius: ${(p) => p.$radius}px;
-  background: #2c2c2e;
+  background: #000;
+  border: 2px dashed #3a3a3c;
 `;
 
 const IconName = styled.span`
