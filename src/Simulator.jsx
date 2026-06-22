@@ -16,6 +16,7 @@ import {
   UI_SCALE,
   SCREEN_RADIUS,
   SCREEN_INSET,
+  SCREEN_INSET_BOTTOM,
   CONTENT_WIDTH,
   CONTENT_WIDTH_ON_DEVICE,
   CONTENT_HEIGHT,
@@ -39,7 +40,7 @@ export const LEFT_MASK = {
   offset: 160,
   color: "#000",
   // Red dot's left edge position in physical px from the screen's left.
-  dotLeft: 28,
+  dotLeft: 16,
   // Red dot diameter in physical px.
   dotSize: 60,
 };
@@ -319,8 +320,10 @@ function Simulator({ children, leftMask }) {
   // the inset and rounded corners on all sides; the sidebar stays inset via
   // MaskChrome.
   const bleed = view === "home";
+  // Trim 2px of height off the bottom on the physical device only.
+  const bottomExtra = onDevice ? SCREEN_INSET_BOTTOM - SCREEN_INSET : 0;
   const contentTop = bleed ? 0 : SCREEN_INSET;
-  const contentHeight = bleed ? SCREEN_HEIGHT : CONTENT_HEIGHT;
+  const contentHeight = (bleed ? SCREEN_HEIGHT : CONTENT_HEIGHT) - bottomExtra;
   const contentRadius = bleed ? 0 : APP_RADIUS;
   const stageHeight = contentHeight / UI_SCALE;
 
