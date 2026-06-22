@@ -4,7 +4,21 @@ body,
   height: 100%;
 }
 
+html,
 body {
+  /* Lock the main page: no scrolling or rubber-band overscroll. Only inner
+     containers that opt into overflow:auto/scroll may scroll. */
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #000;
+  /* Suppress the iOS long-press callout and the tap highlight flash. */
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  position: fixed;
+  inset: 0;
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
     "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",

@@ -290,9 +290,38 @@ function Simulator({ children, leftMask }) {
     </>
   );
 
-  // On device: render the screen full-bleed.
+  // On device: fill the screen. The device WebView reports a portrait CSS
+  // viewport (e.g. ~411x914) even though the panel is mounted landscape, so
+  // rotate the 1600x720 screen 90deg when the viewport is portrait, then scale
+  // to fill. (Flip to "rotate(-90deg)" below if the content is upside down.)
   if (onDevice) {
-    return <Screen style={{ boxShadow: "none" }}>{screenContent}</Screen>;
+    const portrait = height > width;
+    // Space available in the screen's own (pre-rotation) coordinates.
+    const availW = portrait ? height : width;
+    const availH = portrait ? width : height;
+    const scale = Math.min(availW / SCREEN_WIDTH, availH / SCREEN_HEIGHT);
+    const transform = portrait
+      ? `rotate(90deg) scale(${scale})`
+      : `scale(${scale})`;
+    return (
+      <div
+        style={{
+          width: "100vw",
+          height: "100vh",
+          overflow: "hidden",
+          background: "#000",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          style={{ flex: "none", transform, transformOrigin: "center center" }}
+        >
+          <Screen style={{ boxShadow: "none" }}>{screenContent}</Screen>
+        </div>
+      </div>
+    );
   }
 
   // Simulator mode: scale the screen down to fit the current window, leaving
