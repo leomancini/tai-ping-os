@@ -20,8 +20,6 @@ export const SCREEN_INSET = 8;
 // Slightly larger inset on the right edge for a bigger right margin.
 export const SCREEN_INSET_RIGHT = SCREEN_INSET + 2;
 
-// Slightly larger inset on the bottom edge (device only) — trims 2px of height.
-export const SCREEN_INSET_BOTTOM = SCREEN_INSET + 2;
 
 // Reduce a radius by the inset so nested corners stay concentric with the
 // screen's outer corner. Clamped so a large inset can't go negative.

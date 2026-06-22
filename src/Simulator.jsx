@@ -17,7 +17,6 @@ import {
   UI_SCALE,
   SCREEN_RADIUS,
   SCREEN_INSET,
-  SCREEN_INSET_BOTTOM,
   SCREEN_INSET_RIGHT,
   CONTENT_WIDTH,
   CONTENT_HEIGHT,
@@ -334,12 +333,13 @@ function Simulator({ children, leftMask }) {
   // the inset and rounded corners on all sides; the sidebar stays inset via
   // MaskChrome.
   const bleed = view === "home";
-  // On device, leave a slightly larger gap below the app. Shift the content up
-  // (smaller top inset) rather than shrinking it, so the extra gap goes below
-  // the border radius without eating into the app's height.
-  const bottomExtra = onDevice ? SCREEN_INSET_BOTTOM - SCREEN_INSET : 0;
-  const contentTop = bleed ? 0 : SCREEN_INSET - bottomExtra;
-  const contentHeight = bleed ? SCREEN_HEIGHT - bottomExtra : CONTENT_HEIGHT;
+  // On device the app sits just 2px from the bottom edge (standard inset
+  // elsewhere); the app extends down to fill it rather than being shrunk.
+  const bottomInset = onDevice ? 2 : SCREEN_INSET;
+  const contentTop = bleed ? 0 : SCREEN_INSET;
+  const contentHeight = bleed
+    ? SCREEN_HEIGHT - (onDevice ? bottomInset : 0)
+    : SCREEN_HEIGHT - SCREEN_INSET - bottomInset;
   const contentRadius = bleed ? 0 : APP_RADIUS;
   const stageHeight = contentHeight / UI_SCALE;
 
