@@ -33,6 +33,9 @@ function loadKeys() {
 }
 const KEYS = loadKeys();
 
+// Special public key: authenticates but disables anything needing secrets.
+const DEMO_KEY = "DEMO";
+
 // Resolve the user from the access key (header, query, or body). Null if unknown.
 function authUser(req) {
   const key =
@@ -40,6 +43,7 @@ function authUser(req) {
     (req.query && req.query.key) ||
     (req.body && req.body.key);
   if (!key) return null;
+  if (key === DEMO_KEY) return { label: "DEMO", demo: true, secrets: {} };
   return KEYS.get(key) || null;
 }
 
@@ -50,7 +54,8 @@ app.post("/api/validate-key", (req, res) => {
   res.json({
     valid: true,
     label: user.label,
-    fullName: user.secrets.FULL_NAME || user.label,
+    fullName: user.demo ? null : user.secrets.FULL_NAME || user.label,
+    demo: !!user.demo,
   });
 });
 
@@ -168,6 +173,11 @@ app.post("/api/generate-app", async (req, res) => {
     const user = authUser(req);
     if (!user) {
       return res.status(401).json({ error: "Invalid or missing key." });
+    }
+    if (user.demo) {
+      return res
+        .status(403)
+        .json({ error: "App generation is disabled in demo mode." });
     }
     const apiKey = user.secrets && user.secrets.ANTHROPIC_API_KEY;
     if (!apiKey) {

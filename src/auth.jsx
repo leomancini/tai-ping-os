@@ -79,7 +79,12 @@ export function AuthGate({ children }) {
           try {
             localStorage.setItem(STORAGE_KEY, key);
           } catch {}
-          setIdentity({ key, label: data.label, fullName: data.fullName });
+          setIdentity({
+            key,
+            label: data.label,
+            fullName: data.fullName,
+            demo: !!data.demo,
+          });
           setStatus("ok");
         } else {
           try {
