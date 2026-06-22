@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import styled from "styled-components";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useApps } from "./apps/AppsContext";
+import { useAuth } from "./auth";
 
 const Screen = styled.div`
   width: 100%;
@@ -125,10 +126,13 @@ const Swatch = styled.div`
   background: ${(p) => p.$color};
 `;
 
-async function generate(body) {
+async function generate(body, key) {
   const res = await fetch("/api/generate-app", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(key ? { "x-taiping-key": key } : {}),
+    },
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
@@ -138,6 +142,7 @@ async function generate(body) {
 
 function CreatorApp({ onLaunch }) {
   const { userApps, createApp, updateApp, removeApp } = useApps();
+  const auth = useAuth();
   const [prompt, setPrompt] = useState("");
   const [editing, setEditing] = useState(null); // app entry being edited
   const [editPrompt, setEditPrompt] = useState("");
@@ -149,7 +154,7 @@ function CreatorApp({ onLaunch }) {
     setBusy(true);
     setError(null);
     try {
-      const spec = await generate({ prompt: prompt.trim() });
+      const spec = await generate({ prompt: prompt.trim() }, auth?.key);
       const id = createApp(spec);
       setPrompt("");
       onLaunch && onLaunch(id);
@@ -173,10 +178,13 @@ function CreatorApp({ onLaunch }) {
     setBusy(true);
     setError(null);
     try {
-      const spec = await generate({
-        prompt: editPrompt.trim(),
-        current: { id: editing.id, name: editing.name, code: editing.code },
-      });
+      const spec = await generate(
+        {
+          prompt: editPrompt.trim(),
+          current: { id: editing.id, name: editing.name, code: editing.code },
+        },
+        auth?.key
+      );
       updateApp(editing.id, spec);
       setEditing(null);
       setEditPrompt("");

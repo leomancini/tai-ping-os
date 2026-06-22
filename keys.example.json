@@ -1,0 +1,24 @@
+{
+  "_comment": "Copy this file to keys.json (git-ignored) and fill in real values. Each entry is a user label. `key` is the TAI_PING_OS_API_KEY they pass as ?key=<key>. `secrets` are that user's private values used server-side.",
+  "LEO": {
+    "key": "CHANGE_ME_leo_access_key",
+    "secrets": {
+      "ANTHROPIC_API_KEY": "",
+      "FULL_NAME": "Leo"
+    }
+  },
+  "ALICIA": {
+    "key": "CHANGE_ME_alicia_access_key",
+    "secrets": {
+      "ANTHROPIC_API_KEY": "",
+      "FULL_NAME": "Alicia"
+    }
+  },
+  "ANNA": {
+    "key": "CHANGE_ME_anna_access_key",
+    "secrets": {
+      "ANTHROPIC_API_KEY": "",
+      "FULL_NAME": "Anna"
+    }
+  }
+}

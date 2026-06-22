@@ -9,6 +9,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import HomeScreen from "./HomeScreen";
 import CreatorApp from "./CreatorApp";
+import SettingsApp from "./SettingsApp";
 import { useApps } from "./apps/AppsContext";
 import {
   SCREEN_WIDTH,
@@ -270,6 +271,7 @@ function Simulator({ children, leftMask }) {
   // Map each mask button to an action.
   const onMaskTap = (name) => {
     if (name === "home") setView("home");
+    else if (name === "settings") setView("settings");
     else if (name === "creator") setView("creator");
     else if (name === "refresh") window.location.reload();
   };
@@ -314,6 +316,8 @@ function Simulator({ children, leftMask }) {
     );
   } else if (view === "creator") {
     stageContent = <CreatorApp onLaunch={(id) => setView(id)} />;
+  } else if (view === "settings") {
+    stageContent = <SettingsApp />;
   } else {
     const app = getApp(view);
     stageContent = app ? <app.Component /> : children;

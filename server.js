@@ -3,6 +3,7 @@ import express from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import { readFileSync } from "fs";
 import { APP_ICON_RADIUS } from "./src/screenMetrics.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -11,9 +12,47 @@ const __dirname = dirname(__filename);
 const app = express();
 const port = 3137;
 
-const anthropic = new Anthropic(); // reads ANTHROPIC_API_KEY from env
-
 app.use(express.json({ limit: "1mb" }));
+
+// Access control. keys.json (git-ignored) maps each user label to an access key
+// (the TAI_PING_OS_API_KEY passed as ?key=) and that user's private secrets
+// (their own ANTHROPIC_API_KEY, FULL_NAME, ...). See keys.example.json.
+function loadKeys() {
+  try {
+    const cfg = JSON.parse(readFileSync(join(__dirname, "keys.json"), "utf8"));
+    const byKey = new Map();
+    for (const [label, entry] of Object.entries(cfg)) {
+      if (label.startsWith("_") || !entry || !entry.key) continue;
+      byKey.set(entry.key, { label, secrets: entry.secrets || {} });
+    }
+    return byKey;
+  } catch (e) {
+    console.warn("Could not load keys.json:", e.message);
+    return new Map();
+  }
+}
+const KEYS = loadKeys();
+
+// Resolve the user from the access key (header, query, or body). Null if unknown.
+function authUser(req) {
+  const key =
+    req.get("x-taiping-key") ||
+    (req.query && req.query.key) ||
+    (req.body && req.body.key);
+  if (!key) return null;
+  return KEYS.get(key) || null;
+}
+
+// Validate a key and return its public-facing identity.
+app.post("/api/validate-key", (req, res) => {
+  const user = authUser(req);
+  if (!user) return res.status(401).json({ valid: false });
+  res.json({
+    valid: true,
+    label: user.label,
+    fullName: user.secrets.FULL_NAME || user.label,
+  });
+});
 
 // Serve the built frontend.
 app.use(express.static(join(__dirname, "dist")));
@@ -126,11 +165,17 @@ const APP_SCHEMA = {
 
 app.post("/api/generate-app", async (req, res) => {
   try {
-    if (!process.env.ANTHROPIC_API_KEY) {
+    const user = authUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Invalid or missing key." });
+    }
+    const apiKey = user.secrets && user.secrets.ANTHROPIC_API_KEY;
+    if (!apiKey) {
       return res
         .status(500)
-        .json({ error: "ANTHROPIC_API_KEY is not set on the server." });
+        .json({ error: `No ANTHROPIC_API_KEY configured for ${user.label}.` });
     }
+    const anthropic = new Anthropic({ apiKey });
 
     const { prompt, current } = req.body || {};
     if (!prompt || typeof prompt !== "string") {
