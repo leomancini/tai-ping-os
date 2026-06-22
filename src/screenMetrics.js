@@ -17,6 +17,9 @@ export const SCREEN_RADIUS = 70;
 // radius by the same amount (see `concentric` below).
 export const SCREEN_INSET = 8;
 
+// Slightly larger inset on the right edge for a bigger right margin.
+export const SCREEN_INSET_RIGHT = SCREEN_INSET + 2;
+
 // Reduce a radius by the inset so nested corners stay concentric with the
 // screen's outer corner. Clamped so a large inset can't go negative.
 export const concentric = (radius) => Math.max(0, radius - SCREEN_INSET);
@@ -24,8 +27,9 @@ export const concentric = (radius) => Math.max(0, radius - SCREEN_INSET);
 // Base corner radius of the OS home-screen app icons / sidebar tiles (physical px).
 export const ICON_RADIUS = 32;
 
-// Content area after the inset.
-export const CONTENT_WIDTH = SCREEN_WIDTH - 2 * SCREEN_INSET;
+// Content area after the inset (left uses SCREEN_INSET, right uses the larger
+// SCREEN_INSET_RIGHT, so the right margin is a touch wider).
+export const CONTENT_WIDTH = SCREEN_WIDTH - SCREEN_INSET - SCREEN_INSET_RIGHT;
 export const CONTENT_HEIGHT = SCREEN_HEIGHT - 2 * SCREEN_INSET;
 
 // The app's content corner, concentric inside the screen's outer corner.
