@@ -438,19 +438,21 @@ function Simulator({ children, leftMask }) {
     (width - PADDING_X * 2) / SCREEN_WIDTH,
     (height - 40) / SCREEN_HEIGHT
   );
+  // Snap the scaled screen to whole device pixels so the rounded corners land on
+  // the pixel grid and rasterize identically on every side (no fuzzy bottom
+  // corners from a fractional transform). Derive per-axis scale from the rounded
+  // box so the transformed element fills it exactly.
+  const boxW = Math.round(SCREEN_WIDTH * scale);
+  const boxH = Math.round(SCREEN_HEIGHT * scale);
+  const scaleX = boxW / SCREEN_WIDTH;
+  const scaleY = boxH / SCREEN_HEIGHT;
 
   return (
     <Backdrop>
-      <div
-        style={{
-          width: SCREEN_WIDTH * scale,
-          height: SCREEN_HEIGHT * scale,
-          flex: "none",
-        }}
-      >
+      <div style={{ width: boxW, height: boxH, flex: "none" }}>
         <div
           style={{
-            transform: `scale(${scale})`,
+            transform: `scale(${scaleX}, ${scaleY})`,
             transformOrigin: "top left",
             willChange: "transform",
             backfaceVisibility: "hidden",
@@ -459,7 +461,7 @@ function Simulator({ children, leftMask }) {
           <Screen
             style={{
               borderRadius: SCREEN_RADIUS,
-              boxShadow: "0 24px 80px rgba(0, 0, 0, 0.25)",
+              boxShadow: "0 0 64px rgba(0, 0, 0, 0.22)",
             }}
           >
             {screenContent}
