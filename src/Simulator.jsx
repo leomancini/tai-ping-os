@@ -341,7 +341,9 @@ function Simulator({ children, leftMask }) {
     ? SCREEN_HEIGHT
     : SCREEN_HEIGHT - SCREEN_INSET - bottomInset;
   const contentRadius = bleed ? 0 : APP_RADIUS;
-  const stageHeight = contentHeight / UI_SCALE;
+  // On device, let the app overflow the rounded clip by 1px at the bottom so it
+  // always fills to the end of the corner curve (no sub-pixel sliver).
+  const stageHeight = (contentHeight + (onDevice ? 1 : 0)) / UI_SCALE;
 
   const screenContent = (
     <>
