@@ -10,17 +10,29 @@ import {
 import HomeScreen from "./HomeScreen";
 import CreatorApp from "./CreatorApp";
 import { useApps } from "./apps/AppsContext";
+import {
+  SCREEN_WIDTH,
+  SCREEN_HEIGHT,
+  UI_SCALE,
+  SCREEN_RADIUS,
+  SCREEN_INSET,
+  CONTENT_WIDTH,
+  CONTENT_HEIGHT,
+  APP_RADIUS,
+  ICON_RADIUS,
+  concentric,
+} from "./screenMetrics";
 
-export const SCREEN_WIDTH = 1600;
-export const SCREEN_HEIGHT = 720;
+export {
+  SCREEN_WIDTH,
+  SCREEN_HEIGHT,
+  UI_SCALE,
+  APP_RADIUS,
+  SCREEN_INSET,
+};
 
-// The app is authored at a logical resolution and rendered at this scale,
-// so a 24px element occupies 48px on the physical 1600x720 screen.
-export const UI_SCALE = 2;
-
-// Corner rounding on the app's left edge (top-left + bottom-left), all modes.
-export const APP_RADIUS = 72;
-const LOGICAL_HEIGHT = SCREEN_HEIGHT / UI_SCALE;
+// The app's logical canvas height inside the inset content area.
+const LOGICAL_HEIGHT = CONTENT_HEIGHT / UI_SCALE;
 
 // Black mask down the left of the app. `offset` is the black strip width in
 // physical px; the app to its right gets rounded top-left/bottom-left corners.
@@ -38,7 +50,7 @@ export const MASK_RECTS = {
   icons: ["home", "settings", "creator", "refresh"],
   width: 88,
   height: 88,
-  radius: 32,
+  radius: ICON_RADIUS,
   color: "#333",
   iconSize: 44,
   iconColor: "#fff",
@@ -77,8 +89,23 @@ const Screen = styled.div`
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 24px 80px rgba(0, 0, 0, 0.5);
 `;
 
+// All screen contents live inside this box, inset from the screen edges by
+// SCREEN_INSET on every side. Its corner radius is concentric with the screen's
+// outer corner (APP_RADIUS = SCREEN_RADIUS − inset). Everything inside (the app
+// stage, the left mask, the icons) is laid out in this box's coordinates.
+const Content = styled.div`
+  position: absolute;
+  top: ${SCREEN_INSET}px;
+  left: ${SCREEN_INSET}px;
+  width: ${CONTENT_WIDTH}px;
+  height: ${CONTENT_HEIGHT}px;
+  overflow: hidden;
+  background: #000;
+  border-radius: ${APP_RADIUS}px;
+`;
+
 // Logical canvas the app is authored on, scaled up to fill the available area
-// (the screen minus the left mask) and pinned to its right of the mask.
+// (the content minus the left mask) and pinned to its right of the mask.
 const Stage = styled.div`
   position: absolute;
   top: 0;
@@ -216,7 +243,7 @@ function Simulator({ children, leftMask }) {
 
   const mask = { ...LEFT_MASK, ...leftMask };
   const appLeft = mask.offset > 0 ? mask.offset : 0;
-  const stageWidth = (SCREEN_WIDTH - appLeft) / UI_SCALE;
+  const stageWidth = (CONTENT_WIDTH - appLeft) / UI_SCALE;
 
   // Map each mask button to an action.
   const onMaskTap = (name) => {
@@ -232,7 +259,7 @@ function Simulator({ children, leftMask }) {
   const rectCount = MASK_RECTS.icons.length;
   const rectPad = (appLeft - MASK_RECTS.width) / 2;
   const rectGap =
-    (SCREEN_HEIGHT - 2 * rectPad - rectCount * MASK_RECTS.height) /
+    (CONTENT_HEIGHT - 2 * rectPad - rectCount * MASK_RECTS.height) /
     (rectCount - 1);
   const square1Top = rectPad;
   const square2Bottom = rectPad + MASK_RECTS.height * 2 + rectGap;
@@ -256,7 +283,7 @@ function Simulator({ children, leftMask }) {
         onLaunch={(id) => setView(id)}
         rows={HOME_ROWS}
         iconHeight={iconHeight}
-        iconRadius={MASK_RECTS.radius / UI_SCALE}
+        iconRadius={concentric(MASK_RECTS.radius) / UI_SCALE}
         gap={homeGap}
         padLeft={homePadLeft}
         padTop={iconTop}
@@ -270,7 +297,7 @@ function Simulator({ children, leftMask }) {
   }
 
   const screenContent = (
-    <>
+    <Content>
       <Stage $left={appLeft} $w={stageWidth}>
         {stageContent}
       </Stage>
@@ -295,7 +322,7 @@ function Simulator({ children, leftMask }) {
                 onClick={() => onMaskTap(name)}
                 $w={MASK_RECTS.width}
                 $h={MASK_RECTS.height}
-                $r={MASK_RECTS.radius}
+                $r={concentric(MASK_RECTS.radius)}
                 $color={MASK_RECTS.color}
               >
                 <FontAwesomeIcon
@@ -308,7 +335,7 @@ function Simulator({ children, leftMask }) {
           </MaskRects>
         </>
       )}
-    </>
+    </Content>
   );
 
   // On device: fill the screen. The device WebView reports a portrait CSS
@@ -375,7 +402,7 @@ function Simulator({ children, leftMask }) {
         <div style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}>
           <Screen
             style={{
-              borderRadius: APP_RADIUS,
+              borderRadius: SCREEN_RADIUS,
               boxShadow: "0 24px 80px rgba(0, 0, 0, 0.25)",
             }}
           >
