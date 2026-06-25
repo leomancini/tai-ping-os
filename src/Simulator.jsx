@@ -412,10 +412,16 @@ function Simulator({ children, leftMask }) {
     const availH = portrait ? width : height;
     const rawScale = Math.min(availW / SCREEN_WIDTH, availH / SCREEN_HEIGHT);
     // Snap the scaled screen to whole device pixels (per axis) so the rounded
-    // corners land on the pixel grid instead of being clipped a fraction short
-    // under the fractional transform.
-    const scaleX = Math.round(SCREEN_WIDTH * rawScale) / SCREEN_WIDTH;
-    const scaleY = Math.round(SCREEN_HEIGHT * rawScale) / SCREEN_HEIGHT;
+    // corners land on the physical pixel grid instead of being clipped a
+    // fraction short under the fractional transform. Rounding in CSS px is not
+    // enough: on a screen with a non-integer devicePixelRatio (e.g. 1.75) a
+    // whole CSS px is still a fractional device px, so the edge renders as a
+    // half-lit subpixel. Fold in the DPR so the snap targets real device pixels.
+    const dpr = window.devicePixelRatio || 1;
+    const snapScale = (logical) =>
+      Math.round(logical * rawScale * dpr) / (dpr * logical);
+    const scaleX = snapScale(SCREEN_WIDTH);
+    const scaleY = snapScale(SCREEN_HEIGHT);
     const transform = portrait
       ? `rotate(90deg) scale(${scaleX}, ${scaleY})`
       : `scale(${scaleX}, ${scaleY})`;
@@ -458,10 +464,12 @@ function Simulator({ children, leftMask }) {
   );
   // Snap the scaled screen to whole device pixels so the rounded corners land on
   // the pixel grid and rasterize identically on every side (no fuzzy bottom
-  // corners from a fractional transform). Derive per-axis scale from the rounded
-  // box so the transformed element fills it exactly.
-  const boxW = Math.round(SCREEN_WIDTH * scale);
-  const boxH = Math.round(SCREEN_HEIGHT * scale);
+  // corners from a fractional transform). Fold in devicePixelRatio so the snap
+  // targets real device pixels, not CSS px (which stay fractional in device
+  // space on non-integer-DPR displays, e.g. Windows at 125% or DPR 1.75).
+  const dpr = window.devicePixelRatio || 1;
+  const boxW = Math.round(SCREEN_WIDTH * scale * dpr) / dpr;
+  const boxH = Math.round(SCREEN_HEIGHT * scale * dpr) / dpr;
   const scaleX = boxW / SCREEN_WIDTH;
   const scaleY = boxH / SCREEN_HEIGHT;
 
