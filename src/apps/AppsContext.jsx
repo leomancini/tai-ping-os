@@ -2,6 +2,7 @@ import React, {
   createContext,
   useContext,
   useState,
+  useEffect,
   useCallback,
   useMemo,
 } from "react";
@@ -12,6 +13,7 @@ import {
   deleteUserApp,
   newAppId,
   makeStorage,
+  subscribe,
 } from "./store";
 import { resolveIcon } from "../icons";
 import GeneratedApp from "../GeneratedApp";
@@ -43,6 +45,10 @@ function toEntry(record) {
 
 export function AppsProvider({ children }) {
   const [userApps, setUserApps] = useState(() => loadUserApps());
+
+  // Keep the app list in sync with the store after out-of-band changes such as
+  // a backup restore.
+  useEffect(() => subscribe(() => setUserApps(loadUserApps())), []);
 
   const createApp = useCallback((spec) => {
     const now = Date.now();

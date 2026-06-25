@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { faNoteSticky } from "@fortawesome/free-solid-svg-icons";
+import { kvGet, kvSet } from "./store";
 
 const STORAGE_KEY = "taiping.notes";
 
@@ -43,13 +44,13 @@ const Area = styled.textarea`
 
 function Notes() {
   const [text, setText] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved !== null ? saved : "Tap to edit…\n";
+    const saved = kvGet(STORAGE_KEY);
+    return typeof saved === "string" ? saved : "Tap to edit…\n";
   });
 
-  // Persist locally on every change so notes survive reloads.
+  // Persist on-device on every change so notes survive reloads.
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, text);
+    kvSet(STORAGE_KEY, text);
   }, [text]);
 
   return (
