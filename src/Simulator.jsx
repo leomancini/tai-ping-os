@@ -11,6 +11,12 @@ import HomeScreen from "./HomeScreen";
 import CreatorApp from "./CreatorApp";
 import SettingsApp from "./SettingsApp";
 import { useApps } from "./apps/AppsContext";
+import { kvGet, kvSet } from "./apps/store";
+
+// Persist which screen is open so a WebView reload (or an Android Activity
+// restart) returns to the same app instead of dropping back to the home screen.
+const VIEW_KEY = "taiping.view";
+const FIXED_VIEWS = new Set(["home", "creator", "settings", "app"]);
 import {
   SCREEN_WIDTH,
   SCREEN_HEIGHT,
@@ -259,7 +265,21 @@ function Simulator({ children, leftMask }) {
     params.get("showCamera") === "true"
   );
   // Current screen: "home", "creator", an app id, or "app" for the default app.
-  const [view, setView] = useState("home");
+  // Initialize from the persisted value so a forced reload (e.g. the system
+  // killing the WebView renderer under memory pressure) lands back on the same
+  // screen rather than home. A normal session never reloads, so this is only a
+  // fallback — the typing experience is preserved by NOT recreating the Activity
+  // (see android:configChanges in the wrapper's manifest).
+  const [view, setView] = useState(() => {
+    const saved = kvGet(VIEW_KEY);
+    if (typeof saved === "string" && (FIXED_VIEWS.has(saved) || getApp(saved))) {
+      return saved;
+    }
+    return "home";
+  });
+  useEffect(() => {
+    kvSet(VIEW_KEY, view);
+  }, [view]);
 
   const mask = { ...LEFT_MASK, ...leftMask };
   // On device, leave a slightly larger gap on the right. Shift the content left
