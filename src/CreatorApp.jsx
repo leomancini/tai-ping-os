@@ -127,14 +127,21 @@ const Swatch = styled.div`
 `;
 
 async function generate(body, key) {
-  const res = await fetch("/api/generate-app", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(key ? { "x-taiping-key": key } : {}),
-    },
-    body: JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch("/api/generate-app", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(key ? { "x-taiping-key": key } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    // Network error — creating apps needs the server (AI generation). Existing
+    // apps still work offline; only this one feature requires a connection.
+    throw new Error("You're offline. Creating apps needs a connection.");
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Generation failed.");
   return data;

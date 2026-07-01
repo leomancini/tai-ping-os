@@ -7,6 +7,9 @@ import React, {
 import styled from "styled-components";
 
 const STORAGE_KEY = "taiping.key";
+// Cache of the last successful validation, so the app can start offline. Only a
+// key that the server has previously accepted is ever cached here.
+const IDENTITY_KEY = "taiping.identity";
 const AuthContext = createContext(null);
 
 export function useAuth() {
@@ -54,6 +57,14 @@ function readInitialKey() {
   }
 }
 
+function readCachedIdentity() {
+  try {
+    return JSON.parse(localStorage.getItem(IDENTITY_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
 export function AuthGate({ children }) {
   const [status, setStatus] = useState("checking"); // checking | ok | denied
   const [identity, setIdentity] = useState(null); // { key, label, fullName }
@@ -76,24 +87,39 @@ export function AuthGate({ children }) {
         const data = await res.json().catch(() => ({}));
         if (cancelled) return;
         if (res.ok && data.valid) {
-          try {
-            localStorage.setItem(STORAGE_KEY, key);
-          } catch {}
-          setIdentity({
+          const id = {
             key,
             label: data.label,
             fullName: data.fullName,
             demo: !!data.demo,
-          });
+          };
+          try {
+            localStorage.setItem(STORAGE_KEY, key);
+            localStorage.setItem(IDENTITY_KEY, JSON.stringify(id));
+          } catch {}
+          setIdentity(id);
           setStatus("ok");
         } else {
+          // The server reachably rejected the key: it's genuinely invalid, so
+          // clear the cached identity too (don't let it grant offline access).
           try {
             localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(IDENTITY_KEY);
           } catch {}
           setStatus("denied");
         }
       } catch {
-        if (!cancelled) setStatus("denied");
+        // Network error (offline). Fall back to the identity cached from a
+        // previous successful validation for this same key, so the app still
+        // starts. If there's no matching cached identity, deny.
+        if (cancelled) return;
+        const cached = readCachedIdentity();
+        if (cached && cached.key === key) {
+          setIdentity({ ...cached, offline: true });
+          setStatus("ok");
+        } else {
+          setStatus("denied");
+        }
       }
     })();
     return () => {
