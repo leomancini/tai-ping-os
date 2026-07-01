@@ -15,15 +15,19 @@ export default defineConfig({
     // (handled with an offline grace path in auth.jsx) and AI app generation.
     VitePWA({
       // A new SW is precached in the background but must NOT take over the
-      // running page. We deliberately avoid registerType "autoUpdate": it calls
-      // skipWaiting + clientsClaim, which reloads the page the instant a new SW
-      // activates (and on the very first install) — that showed up as the app
-      // "randomly" reloading mid-session, remounting the whole tree and flashing
-      // the auth gate. "prompt" installs updates quietly; the new SW stays in
-      // waiting and activates on the next cold start, so a running session is
-      // never reloaded out from under the user.
+      // running page on its own. We deliberately avoid registerType "autoUpdate":
+      // it calls skipWaiting + clientsClaim, which reloads the page the instant a
+      // new SW activates (and on the very first install) — that showed up as the
+      // app "randomly" reloading mid-session, remounting the whole tree and
+      // flashing the auth gate. "prompt" installs updates quietly and leaves the
+      // new SW waiting.
+      //
+      // injectRegister is null because we register the SW ourselves in
+      // src/pwa.js, where we apply a waiting update ONLY in a short window right
+      // after boot (see there). That gives single-relaunch updates with the
+      // reload happening at startup, never mid-session.
       registerType: "prompt",
-      injectRegister: "auto",
+      injectRegister: null,
       workbox: {
         // Precache the whole built shell.
         globPatterns: ["**/*.{js,css,html,ico,svg,png,woff,woff2}"],
