@@ -16,7 +16,7 @@ import { kvGet, kvSet } from "./apps/store";
 // Persist which screen is open so a WebView reload (or an Android Activity
 // restart) returns to the same app instead of dropping back to the home screen.
 const VIEW_KEY = "taiping.view";
-const FIXED_VIEWS = new Set(["home", "creator", "settings", "app"]);
+const FIXED_VIEWS = new Set(["home", "creator", "settings"]);
 import {
   SCREEN_WIDTH,
   SCREEN_HEIGHT,
@@ -30,14 +30,6 @@ import {
   ICON_RADIUS,
   concentric,
 } from "./screenMetrics";
-
-export {
-  SCREEN_WIDTH,
-  SCREEN_HEIGHT,
-  UI_SCALE,
-  APP_RADIUS,
-  SCREEN_INSET,
-};
 
 
 // Black mask down the left of the app. `offset` is the black strip width in
@@ -252,11 +244,11 @@ function useWindowSize() {
   return size;
 }
 
-function Simulator({ children, leftMask }) {
+function Shell({ leftMask }) {
   const { width, height } = useWindowSize();
   const { getApp } = useApps();
   // On the physical device, the page is loaded with ?onDevice=true and rendered
-  // full-bleed. Anywhere else, render in the scaled-down simulator.
+  // full-bleed. Anywhere else, render in the scaled-down simulator preview.
   const params = new URLSearchParams(window.location.search);
   const onDevice = params.get("onDevice") === "true";
   // The red camera dot in the left mask is hidden unless ?showCamera=true, and
@@ -280,6 +272,13 @@ function Simulator({ children, leftMask }) {
   useEffect(() => {
     kvSet(VIEW_KEY, view);
   }, [view]);
+
+  // Recover if the open view points at an app that no longer exists (deleted
+  // while open). Keyed on `view`; a missing app only becomes relevant on a view
+  // change or (re)mount, which is exactly when this needs to run.
+  useEffect(() => {
+    if (!FIXED_VIEWS.has(view) && !getApp(view)) setView("home");
+  }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const mask = { ...LEFT_MASK, ...leftMask };
   // On device, leave a slightly larger gap on the right. Shift the content left
@@ -342,8 +341,10 @@ function Simulator({ children, leftMask }) {
   } else if (view === "settings") {
     stageContent = <SettingsApp />;
   } else {
+    // An app id: render it, or fall back home if it no longer exists (e.g. the
+    // app was deleted while it was the persisted open view).
     const app = getApp(view);
-    stageContent = app ? <app.Component /> : children;
+    stageContent = app ? <app.Component /> : null;
   }
 
   // The home grid bleeds to the top/bottom screen edges so its icons clip at the
@@ -528,4 +529,4 @@ function Simulator({ children, leftMask }) {
   );
 }
 
-export default Simulator;
+export default Shell;

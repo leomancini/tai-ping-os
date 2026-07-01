@@ -1,8 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
-import App from "./App";
-import Simulator from "./Simulator";
+import Shell from "./Shell";
 import { AppsProvider } from "./apps/AppsContext";
 import { AuthGate } from "./auth";
 import StoreGate from "./StoreGate";
@@ -12,9 +11,7 @@ root.render(
   <AuthGate>
     <StoreGate>
       <AppsProvider>
-        <Simulator>
-          <App />
-        </Simulator>
+        <Shell />
       </AppsProvider>
     </StoreGate>
   </AuthGate>

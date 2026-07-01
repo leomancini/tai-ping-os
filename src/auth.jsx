@@ -24,8 +24,11 @@ const Center = styled.div`
   align-items: center;
   justify-content: center;
   gap: 16px;
-  background: #d4d4d4;
-  color: #1c1c1e;
+  /* Match the OS's black background so a reload (which re-runs this gate while
+     it re-validates the key over the network) transitions black -> black ->
+     home, with no light flash. */
+  background: #000;
+  color: #fff;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 `;
 
@@ -39,12 +42,18 @@ const Card = styled.div`
 `;
 
 const Field = styled.input`
-  border: 1px solid #b8b8b8;
+  border: 1px solid #3a3a3c;
+  background: #1c1c1e;
+  color: #fff;
   border-radius: 10px;
   padding: 12px 14px;
   font: inherit;
   font-size: 15px;
   outline: none;
+
+  &::placeholder {
+    color: #8e8e93;
+  }
 `;
 
 function readInitialKey() {
