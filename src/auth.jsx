@@ -79,12 +79,29 @@ export function AuthGate({ children }) {
   const [identity, setIdentity] = useState(null); // { key, label, fullName }
   const [entry, setEntry] = useState("");
 
+  // The key is validated exactly once, here on mount. There is no re-validation
+  // during a session — the app never polls the server for auth. So this only
+  // runs again if the whole app remounts, i.e. a full page reload.
   useEffect(() => {
     const key = readInitialKey();
     if (!key) {
       setStatus("denied");
       return;
     }
+
+    // Optimistic start: if this exact key was validated before, show the app
+    // IMMEDIATELY from the cached identity and re-validate silently in the
+    // background. This means a reload (e.g. the OS killing the WebView renderer
+    // under memory pressure) restores straight to the app with no visible gate
+    // screen — the black "checking" screen only ever shows on a genuine first
+    // run with no cached identity.
+    const cached = readCachedIdentity();
+    const startedOptimistically = cached && cached.key === key;
+    if (startedOptimistically) {
+      setIdentity(cached);
+      setStatus("ok");
+    }
+
     let cancelled = false;
     (async () => {
       try {
@@ -109,20 +126,21 @@ export function AuthGate({ children }) {
           setIdentity(id);
           setStatus("ok");
         } else {
-          // The server reachably rejected the key: it's genuinely invalid, so
-          // clear the cached identity too (don't let it grant offline access).
+          // The server reachably rejected the key: it's genuinely invalid or
+          // revoked, so lock out even if we started optimistically, and clear
+          // the cache so it can't grant access again.
           try {
             localStorage.removeItem(STORAGE_KEY);
             localStorage.removeItem(IDENTITY_KEY);
           } catch {}
+          setIdentity(null);
           setStatus("denied");
         }
       } catch {
-        // Network error (offline). Fall back to the identity cached from a
-        // previous successful validation for this same key, so the app still
-        // starts. If there's no matching cached identity, deny.
+        // Network error (offline). If we already started from the cache, stay
+        // in; otherwise fall back to the cached identity for this key, or deny.
         if (cancelled) return;
-        const cached = readCachedIdentity();
+        if (startedOptimistically) return;
         if (cached && cached.key === key) {
           setIdentity({ ...cached, offline: true });
           setStatus("ok");

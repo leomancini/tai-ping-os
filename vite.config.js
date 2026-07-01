@@ -14,9 +14,15 @@ export default defineConfig({
     // except for the two things that inherently need the server: key validation
     // (handled with an offline grace path in auth.jsx) and AI app generation.
     VitePWA({
-      // Kiosk devices: update the SW in the background and take over on the next
-      // launch, no user prompt.
-      registerType: "autoUpdate",
+      // A new SW is precached in the background but must NOT take over the
+      // running page. We deliberately avoid registerType "autoUpdate": it calls
+      // skipWaiting + clientsClaim, which reloads the page the instant a new SW
+      // activates (and on the very first install) — that showed up as the app
+      // "randomly" reloading mid-session, remounting the whole tree and flashing
+      // the auth gate. "prompt" installs updates quietly; the new SW stays in
+      // waiting and activates on the next cold start, so a running session is
+      // never reloaded out from under the user.
+      registerType: "prompt",
       injectRegister: "auto",
       workbox: {
         // Precache the whole built shell.
