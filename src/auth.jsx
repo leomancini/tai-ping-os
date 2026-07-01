@@ -137,7 +137,9 @@ export function AuthGate({ children }) {
   }, []);
 
   if (status === "checking") {
-    return <Center>…</Center>;
+    // Just the black background — no spinner/ellipsis — so a reload is a silent
+    // black gap that blends into the OS instead of a visible loading screen.
+    return <Center />;
   }
 
   if (status === "denied") {
