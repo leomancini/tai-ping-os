@@ -2,10 +2,12 @@ import React from "react";
 import styled from "styled-components";
 import * as Babel from "@babel/standalone";
 import { ensureGoogleFonts } from "./fonts";
+import { net } from "./apps/net";
 
 // Compile a generated app's source (a `function App() {...}` body) into a React
-// component. The code runs with React, styled-components, and a per-app storage
-// API in scope — no imports, no network. Results are cached by source string.
+// component. The code runs with React, styled-components, a per-app storage
+// API, and a server-proxied `net.fetch` in scope — no imports, no direct
+// network access. Results are cached by source string.
 const cache = new Map();
 
 function sanitize(code) {
@@ -38,6 +40,7 @@ function compile(code) {
     "React",
     "styled",
     "storage",
+    "net",
     `${transformed}\nreturn App;`
   );
   cache.set(code, factory);
@@ -55,7 +58,7 @@ const appCache = new WeakMap();
 function Runner({ factory, storage }) {
   let App = appCache.get(factory);
   if (!App) {
-    App = factory(React, styled, storage);
+    App = factory(React, styled, storage, net);
     appCache.set(factory, App);
   }
   return <App />;

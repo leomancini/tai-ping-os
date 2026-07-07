@@ -19,6 +19,49 @@ const AUTH_KEY = "taiping.key"; // access key — stays in localStorage, never b
 const EXPORT_FORMAT = "tai-ping-backup";
 const EXPORT_VERSION = 1;
 
+// --- Blob store (photos and other binary app data) ---------------------------
+// Blobs live in their OWN IndexedDB database, separate from the kv cache: they
+// can be megabytes each, so they must not be hydrated into memory at startup
+// with everything else. The API is async (unlike `storage`'s sync JSON side)
+// and blobs are excluded from backup/restore, which is JSON-based.
+
+const BLOB_DB = "taiping.blobs";
+const BLOB_STORE = "blobs";
+
+let blobDbPromise = null;
+function openBlobDb() {
+  if (!blobDbPromise) {
+    blobDbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open(BLOB_DB, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(BLOB_STORE);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  return blobDbPromise;
+}
+
+// Run one request against the blob store and resolve with its result.
+function blobOp(mode, fn) {
+  return openBlobDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const req = fn(db.transaction(BLOB_STORE, mode).objectStore(BLOB_STORE));
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      })
+  );
+}
+
+// Blobs for all apps share one store; keys are namespaced per app.
+const blobKeyRange = (id) => IDBKeyRange.bound(id + ":", id + ":\uffff");
+
+function clearAppBlobs(id) {
+  return blobOp("readwrite", (s) => s.delete(blobKeyRange(id))).catch((err) =>
+    console.error(`[taiping] failed to clear blobs for "${id}":`, err)
+  );
+}
+
 // In-memory mirror of the IndexedDB store. Single source of truth at runtime.
 const cache = new Map();
 let ready = false;
@@ -186,6 +229,7 @@ export function deleteUserApp(id) {
   const apps = loadUserApps().filter((a) => a.id !== id);
   writeUserApps(apps);
   kvRemove(DATA_PREFIX + id);
+  clearAppBlobs(id); // async, best-effort
   notify();
   return apps;
 }
@@ -226,6 +270,23 @@ export function makeStorage(id) {
     },
     keys() {
       return Object.keys(read());
+    },
+
+    // Async blob API (separate IndexedDB store) — for photos and other binary
+    // data that must not be JSON-serialized or hydrated into the kv cache.
+    putBlob(k, blob) {
+      return blobOp("readwrite", (s) => s.put(blob, id + ":" + k));
+    },
+    getBlob(k) {
+      return blobOp("readonly", (s) => s.get(id + ":" + k));
+    },
+    removeBlob(k) {
+      return blobOp("readwrite", (s) => s.delete(id + ":" + k));
+    },
+    blobKeys() {
+      return blobOp("readonly", (s) => s.getAllKeys(blobKeyRange(id))).then(
+        (keys) => keys.map((k) => k.slice(id.length + 1))
+      );
     },
   };
 }
@@ -269,7 +330,10 @@ export function importData(data, { mode = "merge" } = {}) {
   if (mode === "replace") {
     const keepIds = new Set(incomingApps.map((a) => a.id));
     for (const a of loadUserApps()) {
-      if (!keepIds.has(a.id)) kvRemove(DATA_PREFIX + a.id);
+      if (!keepIds.has(a.id)) {
+        kvRemove(DATA_PREFIX + a.id);
+        clearAppBlobs(a.id);
+      }
     }
     apps = incomingApps.slice();
   } else {
