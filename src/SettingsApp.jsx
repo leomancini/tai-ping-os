@@ -92,9 +92,10 @@ function SettingsApp() {
   // Hidden in the old Android wrapper, where file save/pick don't work.
   const canBackup = fileFeaturesAvailable();
 
-  const handleBackup = () => {
+  const handleBackup = async () => {
+    setStatus({ text: "Preparing backup…", error: false });
     try {
-      const json = JSON.stringify(exportData(), null, 2);
+      const json = JSON.stringify(await exportData(), null, 2);
       const res = saveTextFile(backupFilename(), json);
       setStatus({
         text: res.native
@@ -116,10 +117,11 @@ function SettingsApp() {
     e.target.value = ""; // allow picking the same file again later
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
+      setStatus({ text: "Restoring…", error: false });
       try {
         const data = JSON.parse(String(reader.result));
-        const { appsImported } = importData(data, { mode: "merge" });
+        const { appsImported } = await importData(data, { mode: "merge" });
         setStatus({
           text: `Restored ${appsImported} app${
             appsImported === 1 ? "" : "s"
@@ -158,9 +160,10 @@ function SettingsApp() {
             <Button onClick={handleRestoreClick}>Restore</Button>
           </Row>
           <Hint>
-            Backups stay on your device — they're never uploaded. Restoring
-            merges the backup with what's already here; matching apps are
-            updated and missing ones are added back.
+            Backups include your apps, their data, and saved photos, and stay
+            on your device — they're never uploaded. Restoring merges the
+            backup with what's already here; matching apps are updated and
+            missing ones are added back.
           </Hint>
           <Status $error={status.error}>{status.text}</Status>
 

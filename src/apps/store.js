@@ -17,13 +17,16 @@ const MIGRATED_KEY = "taiping.__migrated";
 const AUTH_KEY = "taiping.key"; // access key — stays in localStorage, never backed up
 
 const EXPORT_FORMAT = "tai-ping-backup";
-const EXPORT_VERSION = 1;
+// v1: apps + appData + notes. v2 adds `blobs` (photos etc. as base64).
+// Import accepts both.
+const EXPORT_VERSION = 2;
 
 // --- Blob store (photos and other binary app data) ---------------------------
 // Blobs live in their OWN IndexedDB database, separate from the kv cache: they
 // can be megabytes each, so they must not be hydrated into memory at startup
-// with everything else. The API is async (unlike `storage`'s sync JSON side)
-// and blobs are excluded from backup/restore, which is JSON-based.
+// with everything else. The API is async (unlike `storage`'s sync JSON side).
+// In backups, blobs travel as base64 inside the JSON file (v2) — the Android
+// wrapper's file bridge can only save text, so a binary format isn't an option.
 
 const BLOB_DB = "taiping.blobs";
 const BLOB_STORE = "blobs";
@@ -60,6 +63,53 @@ function clearAppBlobs(id) {
   return blobOp("readwrite", (s) => s.delete(blobKeyRange(id))).catch((err) =>
     console.error(`[taiping] failed to clear blobs for "${id}":`, err)
   );
+}
+
+// Read all of one app's blobs as [key, Blob] pairs (key without the app
+// prefix). Both requests share one transaction so it can't auto-close between
+// them.
+function readAppBlobs(id) {
+  return openBlobDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const s = db.transaction(BLOB_STORE, "readonly").objectStore(BLOB_STORE);
+        const keysReq = s.getAllKeys(blobKeyRange(id));
+        const valsReq = s.getAll(blobKeyRange(id));
+        const done = () => {
+          if (keysReq.readyState === "done" && valsReq.readyState === "done") {
+            resolve(
+              keysReq.result.map((k, i) => [
+                k.slice(id.length + 1),
+                valsReq.result[i],
+              ])
+            );
+          }
+        };
+        keysReq.onsuccess = done;
+        valsReq.onsuccess = done;
+        keysReq.onerror = () => reject(keysReq.error);
+        valsReq.onerror = () => reject(valsReq.error);
+      })
+  );
+}
+
+// --- Blob <-> base64 (for JSON backups) --------------------------------------
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    // readAsDataURL yields "data:<type>;base64,<data>" — keep just the data.
+    r.onload = () => resolve(String(r.result).slice(String(r.result).indexOf(",") + 1));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+
+function base64ToBlob(b64, type) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: type || "application/octet-stream" });
 }
 
 // In-memory mirror of the IndexedDB store. Single source of truth at runtime.
@@ -294,9 +344,10 @@ export function makeStorage(id) {
 // --- Backup / restore -------------------------------------------------------
 
 // Produce a fully self-contained, JSON-serializable snapshot of all apps and
-// their data (plus built-in Notes). The access key is intentionally excluded —
-// a backup file holds creations, not credentials.
-export function exportData() {
+// their data (plus built-in Notes). Binary blobs (photos, audio) ride along as
+// base64 under `blobs`. The access key is intentionally excluded — a backup
+// file holds creations, not credentials.
+export async function exportData() {
   const apps = loadUserApps();
   const appData = {};
   for (const app of apps) {
@@ -312,6 +363,32 @@ export function exportData() {
   };
   const notes = cache.get(NOTES_KEY);
   if (notes !== undefined) out.notes = notes;
+
+  // Encode each app's blobs individually; one unreadable blob (or a blocked
+  // blob DB) skips that entry rather than failing the whole backup.
+  const blobs = {};
+  for (const app of apps) {
+    let entries;
+    try {
+      entries = await readAppBlobs(app.id);
+    } catch {
+      continue;
+    }
+    const encoded = {};
+    for (const [k, blob] of entries) {
+      try {
+        encoded[k] = {
+          type: blob.type || "application/octet-stream",
+          data: await blobToBase64(blob),
+        };
+      } catch (err) {
+        console.error(`[taiping] backup: couldn't encode blob "${k}":`, err);
+      }
+    }
+    if (Object.keys(encoded).length) blobs[app.id] = encoded;
+  }
+  if (Object.keys(blobs).length) out.blobs = blobs;
+
   return out;
 }
 
@@ -319,7 +396,7 @@ export function exportData() {
 // incoming apps overwrite matching ids and new ones are added, but apps absent
 // from the backup are kept. Mode "replace" makes the device match the backup
 // exactly, removing apps (and their data) that aren't in it.
-export function importData(data, { mode = "merge" } = {}) {
+export async function importData(data, { mode = "merge" } = {}) {
   if (!data || data.format !== EXPORT_FORMAT || !Array.isArray(data.apps)) {
     throw new Error("Not a valid Tai Ping backup file.");
   }
@@ -348,6 +425,22 @@ export function importData(data, { mode = "merge" } = {}) {
     persist(DATA_PREFIX + id, d);
   }
   if (typeof data.notes === "string") kvSet(NOTES_KEY, data.notes);
+
+  // Restore blobs (v2 backups). Per-blob failures are logged and skipped so a
+  // single bad entry can't abort the rest of the restore.
+  if (data.blobs && typeof data.blobs === "object") {
+    for (const [id, entries] of Object.entries(data.blobs)) {
+      for (const [k, rec] of Object.entries(entries || {})) {
+        if (!rec || typeof rec.data !== "string") continue;
+        try {
+          const blob = base64ToBlob(rec.data, rec.type);
+          await blobOp("readwrite", (s) => s.put(blob, id + ":" + k));
+        } catch (err) {
+          console.error(`[taiping] restore: couldn't write blob "${k}":`, err);
+        }
+      }
+    }
+  }
 
   notify();
   return { appsImported: incomingApps.length };
