@@ -68,7 +68,9 @@ const Button = styled.button`
   opacity: ${(p) => (p.disabled ? 0.5 : 1)};
 `;
 
-const Error = styled.div`
+// Named ErrorText (not Error) so it doesn't shadow the global Error
+// constructor used by generate() below.
+const ErrorText = styled.div`
   font-size: 13px;
   color: #ff453a;
 `;
@@ -225,7 +227,7 @@ function CreatorApp({ onLaunch }) {
           onChange={(e) => setEditPrompt(e.target.value)}
           onKeyDown={submitOnEnter(handleUpdate)}
         />
-        {error && <Error>{error}</Error>}
+        {error && <ErrorText>{error}</ErrorText>}
         <Row>
           <Button
             onClick={handleUpdate}
@@ -260,7 +262,7 @@ function CreatorApp({ onLaunch }) {
         onChange={(e) => setPrompt(e.target.value)}
         onKeyDown={submitOnEnter(handleCreate)}
       />
-      {error && <Error>{error}</Error>}
+      {error && <ErrorText>{error}</ErrorText>}
       <Row>
         <Button
           onClick={handleCreate}
