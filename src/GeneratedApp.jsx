@@ -10,18 +10,29 @@ import { net } from "./apps/net";
 // network access. Results are cached by source string.
 const cache = new Map();
 
+// Code points whose literal form changes syntax when it lands inside a string
+// literal: quotes, backslash, backtick, and the JS line separators. Together
+// with control chars (< 0x20, e.g. the newline escape) these must stay
+// escaped — converting a unicode-escaped newline inside a string to a real
+// newline splits the string and Babel fails with "Unterminated string
+// constant".
+const UNSAFE_CODEPOINTS = new Set([0x22, 0x27, 0x5c, 0x60, 0x2028, 0x2029]);
+
+function unescapeUnicode(match, hex) {
+  const cp = parseInt(hex, 16);
+  if (cp < 0x20 || UNSAFE_CODEPOINTS.has(cp)) return match;
+  return String.fromCodePoint(cp);
+}
+
 function sanitize(code) {
   return (
     code
       // Convert unicode escapes to real characters. Models sometimes emit
       // `\u{1F4D6}` as JSX text, which is invalid JSX; the literal character is
-      // equivalent inside string literals too.
-      .replace(/\\u\{([0-9a-fA-F]+)\}/g, (_, h) =>
-        String.fromCodePoint(parseInt(h, 16))
-      )
-      .replace(/\\u([0-9a-fA-F]{4})/g, (_, h) =>
-        String.fromCharCode(parseInt(h, 16))
-      )
+      // equivalent inside string literals too (except the unsafe set above,
+      // which is left escaped).
+      .replace(/\\u\{([0-9a-fA-F]+)\}/g, unescapeUnicode)
+      .replace(/\\u([0-9a-fA-F]{4})/g, unescapeUnicode)
       .replace(/^\s*import[^\n;]*;?\s*$/gm, "") // drop any import lines
       .replace(/^\s*export\s+default\s+/gm, "") // `export default function App` -> `function App`
       .replace(/^\s*export\s+/gm, "") // strip other `export ` keywords
