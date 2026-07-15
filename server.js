@@ -174,6 +174,8 @@ NOT have to ask for it. Choose the right strategy per app:
   shape), then build the app to call it at runtime with \`net.fetch\`, with
   loading/error states and sensible caching in \`storage\`.
 - Apps with no real-data angle (calculators, timers, games): don't search.
+Search sparingly — every search adds noticeable wait time for the user. Prefer
+a single well-chosen search; only search again if the first result was unusable.
 
 Also choose:
 - "name": a short app name (1-2 words).
@@ -230,14 +232,20 @@ app.post("/api/generate-app", async (req, res) => {
       : `Create an app: ${prompt}`;
 
     const params = {
-      model: "claude-opus-4-8",
+      model: "claude-sonnet-5",
       max_tokens: 32000,
       thinking: { type: "adaptive" },
       system: SYSTEM_PROMPT,
       // Let the model search the web on its own when live/real data would
-      // improve the app (it decides — see the system prompt).
-      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8 }],
-      output_config: { format: { type: "json_schema", schema: APP_SCHEMA } },
+      // improve the app (it decides — see the system prompt). max_uses is kept
+      // low because each search is a full extra round trip of latency.
+      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 3 }],
+      output_config: {
+        // "medium" trades a bit of thinking depth for speed — plenty for
+        // single-file apps like these.
+        effort: "medium",
+        format: { type: "json_schema", schema: APP_SCHEMA },
+      },
     };
 
     // Server-side tools can pause the turn (stop_reason "pause_turn") when the
