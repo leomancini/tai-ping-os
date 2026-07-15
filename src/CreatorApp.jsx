@@ -47,6 +47,9 @@ const Field = styled.textarea`
   color: #fff;
   background: #1c1c1e;
   outline: none;
+  &:disabled {
+    opacity: 0.5;
+  }
 `;
 
 const Row = styled.div`
@@ -275,6 +278,7 @@ function CreatorApp({ onLaunch }) {
         <Sub>Describe the changes — this replaces the app, keeping its data.</Sub>
         <Field
           autoFocus
+          disabled={busy}
           placeholder="e.g. add a reset button and make it blue"
           value={editPrompt}
           onChange={(e) => setEditPrompt(e.target.value)}
@@ -310,6 +314,7 @@ function CreatorApp({ onLaunch }) {
       <Sub>Describe what you want. AI builds it and adds it to your home screen.</Sub>
       <Field
         autoFocus
+        disabled={busy}
         placeholder="e.g. a tip calculator that remembers the last bill"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}

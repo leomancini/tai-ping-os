@@ -87,7 +87,7 @@ const ICON_KEYWORDS = [
   "compass",
 ];
 
-const SYSTEM_PROMPT = `You generate small, self-contained apps for a phone-like OS. Each app is a single React component rendered full-screen inside a 360x720-ish (logical) area.
+const SYSTEM_PROMPT = `You generate small, self-contained apps for a phone-like OS. Each app is a single React component rendered full-screen inside a LANDSCAPE area of roughly 710x350 logical px (wide and short — about a 2:1 aspect ratio). Design for landscape ONLY; the device never rotates to portrait.
 
 Return ONLY the structured fields. The "code" field is JavaScript (JSX allowed) that MUST follow these rules exactly:
 
@@ -126,6 +126,7 @@ Return ONLY the structured fields. The "code" field is JavaScript (JSX allowed) 
 - The root element must fill its container: width: 100%; height: 100%; box-sizing: border-box.
 - Design for a dark phone screen by default unless the app implies otherwise. Make it look nice and be genuinely functional.
 - Visual design — follow these for a clean, native-feeling look:
+  - LANDSCAPE-FIRST layout: the screen is much wider than it is tall (~710x350), so compose horizontally. Put controls beside content (e.g. a results panel on the right of inputs, a keypad next to the display, a list in a left column with detail on the right) instead of stacking everything vertically. Vertical space is scarce: keep headers to a single compact line or drop them, avoid tall vertical stacks of full-width rows, and never design a layout that needs more than ~350px of height to show its core controls. Multi-column grids beat single-column lists.
   - Lay things out on a consistent spacing grid: use one base unit (e.g. 8px) and make all padding, gaps, and margins multiples of it. Keep equal gutters between repeated items, and equal outer padding on all sides of the screen.
   - Prefer grid/flex layouts with evenly spaced, equally sized tiles or rows (like a home screen of app icons) over ad-hoc positioning.
   - Use rounded corners consistently. Default to a ${APP_ICON_RADIUS}px corner radius — matching the OS app icons — for buttons, cards, inputs, tiles, and other elements UNLESS the app's style clearly dictates otherwise (e.g. fully round pills, or sharp corners for a deliberately blocky look). Make nested corners CONCENTRIC: an inner element's corner radius should equal its parent's radius minus the padding between them (innerRadius = outerRadius − padding). This keeps the rounded edges parallel, like a rounded button centered inside a rounded card. Don't mix many different radii.
