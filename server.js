@@ -204,27 +204,51 @@ const APP_SCHEMA = {
 };
 
 app.post("/api/generate-app", async (req, res) => {
+  // Clients that opt in via the Accept header get an NDJSON stream of
+  // {type:"status"} progress lines followed by a final {type:"result"} or
+  // {type:"error"} line. Older clients (cached PWA bundles) that don't send
+  // the header get the original single-JSON response, so both keep working.
+  const wantsStream = (req.get("accept") || "").includes(
+    "application/x-ndjson"
+  );
+  let streaming = false; // headers sent, committed to the NDJSON protocol
+  const sendLine = (obj) => {
+    if (!streaming) {
+      res.setHeader("Content-Type", "application/x-ndjson");
+      res.setHeader("Cache-Control", "no-cache");
+      res.flushHeaders();
+      streaming = true;
+    }
+    res.write(JSON.stringify(obj) + "\n");
+  };
+  // Error path that works in both modes: proper status code before the
+  // stream starts, an {type:"error"} line (HTTP 200) after.
+  const fail = (status, error) => {
+    if (streaming) {
+      sendLine({ type: "error", error });
+      res.end();
+    } else {
+      res.status(status).json({ error });
+    }
+  };
+
   try {
     const user = authUser(req);
     if (!user) {
-      return res.status(401).json({ error: "Invalid or missing key." });
+      return fail(401, "Invalid or missing key.");
     }
     if (user.demo) {
-      return res
-        .status(403)
-        .json({ error: "App generation is disabled in demo mode." });
+      return fail(403, "App generation is disabled in demo mode.");
     }
     const apiKey = user.secrets && user.secrets.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      return res
-        .status(500)
-        .json({ error: `No ANTHROPIC_API_KEY configured for ${user.label}.` });
+      return fail(500, `No ANTHROPIC_API_KEY configured for ${user.label}.`);
     }
     const anthropic = new Anthropic({ apiKey });
 
     const { prompt, current } = req.body || {};
     if (!prompt || typeof prompt !== "string") {
-      return res.status(400).json({ error: "Missing 'prompt'." });
+      return fail(400, "Missing 'prompt'.");
     }
 
     const userText = current
@@ -248,21 +272,44 @@ app.post("/api/generate-app", async (req, res) => {
       },
     };
 
+    // Live progress for streaming clients, derived from the model's stream
+    // events. Deduped so the client only hears about phase changes.
+    let lastStatus = null;
+    const sendStatus = (text) => {
+      if (!wantsStream || text === lastStatus) return;
+      lastStatus = text;
+      sendLine({ type: "status", text });
+    };
+    const watchStream = (stream) => {
+      stream.on("streamEvent", (event) => {
+        if (event.type !== "content_block_start") return;
+        const block = event.content_block;
+        if (block.type === "server_tool_use") {
+          sendStatus("Searching the web…");
+        } else if (block.type === "thinking") {
+          sendStatus("Thinking…");
+        } else if (block.type === "text") {
+          sendStatus("Writing the app…");
+        }
+      });
+    };
+
+    sendStatus("Thinking…");
+
     // Server-side tools can pause the turn (stop_reason "pause_turn") when the
     // internal tool loop hits its iteration limit; re-send to resume.
     let messages = [{ role: "user", content: userText }];
     let message;
     for (let attempt = 0; attempt < 5; attempt++) {
       const stream = anthropic.messages.stream({ ...params, messages });
+      watchStream(stream);
       message = await stream.finalMessage();
       if (message.stop_reason !== "pause_turn") break;
       messages = [...messages, { role: "assistant", content: message.content }];
     }
 
     if (message.stop_reason === "refusal") {
-      return res
-        .status(422)
-        .json({ error: "The request was declined. Try a different idea." });
+      return fail(422, "The request was declined. Try a different idea.");
     }
 
     // With web search in play the content can contain tool-use blocks and the
@@ -272,20 +319,25 @@ app.post("/api/generate-app", async (req, res) => {
       .map((b) => b.text)
       .join("");
     if (!text) {
-      return res.status(502).json({ error: "No app was generated." });
+      return fail(502, "No app was generated.");
     }
 
     let spec;
     try {
       spec = JSON.parse(text);
     } catch {
-      return res.status(502).json({ error: "Generated app was malformed." });
+      return fail(502, "Generated app was malformed.");
     }
 
-    res.json(spec);
+    if (streaming) {
+      sendLine({ type: "result", spec });
+      res.end();
+    } else {
+      res.json(spec);
+    }
   } catch (error) {
     console.error("generate-app error:", error);
-    res.status(500).json({ error: error.message || "Generation failed." });
+    fail(500, error.message || "Generation failed.");
   }
 });
 

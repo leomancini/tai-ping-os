@@ -128,13 +128,16 @@ const Swatch = styled.div`
   background: ${(p) => p.$color};
 `;
 
-async function generate(body, key) {
+async function generate(body, key, onStatus) {
   let res;
   try {
     res = await fetch("/api/generate-app", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        // Opt in to NDJSON progress streaming; an older server ignores this
+        // and responds with plain JSON, handled below.
+        Accept: "application/x-ndjson",
         ...(key ? { "x-taiping-key": key } : {}),
       },
       body: JSON.stringify(body),
@@ -144,9 +147,49 @@ async function generate(body, key) {
     // apps still work offline; only this one feature requires a connection.
     throw new Error("You're offline. Creating apps needs a connection.");
   }
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Generation failed.");
-  return data;
+
+  const type = res.headers.get("content-type") || "";
+  if (!res.ok || !type.includes("application/x-ndjson")) {
+    // Error responses and older servers use a single JSON body.
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Generation failed.");
+    return data;
+  }
+
+  // NDJSON stream: {type:"status"} lines while generating, then one final
+  // {type:"result", spec} or {type:"error", error} line.
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result = null;
+  let errorMsg = null;
+  const handleLine = (line) => {
+    if (!line.trim()) return;
+    let msg;
+    try {
+      msg = JSON.parse(line);
+    } catch {
+      return;
+    }
+    if (msg.type === "status") onStatus && onStatus(msg.text);
+    else if (msg.type === "result") result = msg.spec;
+    else if (msg.type === "error") errorMsg = msg.error;
+  };
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl;
+    while ((nl = buffer.indexOf("\n")) >= 0) {
+      handleLine(buffer.slice(0, nl));
+      buffer = buffer.slice(nl + 1);
+    }
+  }
+  handleLine(buffer);
+
+  if (errorMsg) throw new Error(errorMsg);
+  if (!result) throw new Error("Generation failed.");
+  return result;
 }
 
 function CreatorApp({ onLaunch }) {
@@ -158,6 +201,7 @@ function CreatorApp({ onLaunch }) {
   const [editing, setEditing] = useState(null); // app entry being edited
   const [editPrompt, setEditPrompt] = useState("");
   const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState(null); // live progress from the server
   const [error, setError] = useState(null);
 
   const handleCreate = async () => {
@@ -167,9 +211,14 @@ function CreatorApp({ onLaunch }) {
     }
     if (!prompt.trim() || busy) return;
     setBusy(true);
+    setStatus(null);
     setError(null);
     try {
-      const spec = await generate({ prompt: prompt.trim() }, auth?.key);
+      const spec = await generate(
+        { prompt: prompt.trim() },
+        auth?.key,
+        setStatus
+      );
       const id = createApp(spec);
       setPrompt("");
       onLaunch && onLaunch(id);
@@ -177,6 +226,7 @@ function CreatorApp({ onLaunch }) {
       setError(e.message);
     } finally {
       setBusy(false);
+      setStatus(null);
     }
   };
 
@@ -195,6 +245,7 @@ function CreatorApp({ onLaunch }) {
     }
     if (!editPrompt.trim() || busy || !editing) return;
     setBusy(true);
+    setStatus(null);
     setError(null);
     try {
       const spec = await generate(
@@ -202,7 +253,8 @@ function CreatorApp({ onLaunch }) {
           prompt: editPrompt.trim(),
           current: { id: editing.id, name: editing.name, code: editing.code },
         },
-        auth?.key
+        auth?.key,
+        setStatus
       );
       updateApp(editing.id, spec);
       setEditing(null);
@@ -212,6 +264,7 @@ function CreatorApp({ onLaunch }) {
       setError(e.message);
     } finally {
       setBusy(false);
+      setStatus(null);
     }
   };
 
@@ -233,7 +286,7 @@ function CreatorApp({ onLaunch }) {
             onClick={handleUpdate}
             disabled={busy || (!demo && !editPrompt.trim())}
           >
-            {busy ? "Updating…" : "Update app"}
+            {busy ? status || "Updating…" : "Update app"}
           </Button>
           <Button
             $ghost
@@ -268,7 +321,7 @@ function CreatorApp({ onLaunch }) {
           onClick={handleCreate}
           disabled={busy || (!demo && !prompt.trim())}
         >
-          {busy ? "Creating…" : "Create app"}
+          {busy ? status || "Creating…" : "Create app"}
         </Button>
       </Row>
 
