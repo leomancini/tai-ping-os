@@ -45,7 +45,7 @@ export const LEFT_MASK = {
 
 // Four rounded rects spaced evenly down the mask strip, each with an icon.
 export const MASK_RECTS = {
-  icons: ["home", "settings", "creator", "refresh"],
+  icons: ["home", "creator", "settings", "refresh"],
   width: 88,
   height: 88,
   radius: ICON_RADIUS,

@@ -4,7 +4,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { readFileSync } from "fs";
-import { APP_ICON_RADIUS } from "./src/screenMetrics.js";
+import { APP_ICON_RADIUS, APP_RADIUS, UI_SCALE } from "./src/screenMetrics.js";
+
+// The app container's rounded corner in the apps' logical coordinate space.
+const APP_CONTAINER_RADIUS = Math.round(APP_RADIUS / UI_SCALE);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -130,6 +133,7 @@ Return ONLY the structured fields. The "code" field is JavaScript (JSX allowed) 
   - Lay things out on a consistent spacing grid: use one base unit (e.g. 8px) and make all padding, gaps, and margins multiples of it. Keep equal gutters between repeated items, and equal outer padding on all sides of the screen.
   - Prefer grid/flex layouts with evenly spaced, equally sized tiles or rows (like a home screen of app icons) over ad-hoc positioning.
   - Use rounded corners consistently. Default to a ${APP_ICON_RADIUS}px corner radius — matching the OS app icons — for buttons, cards, inputs, tiles, and other elements UNLESS the app's style clearly dictates otherwise (e.g. fully round pills, or sharp corners for a deliberately blocky look). Make nested corners CONCENTRIC: an inner element's corner radius should equal its parent's radius minus the padding between them (innerRadius = outerRadius − padding). This keeps the rounded edges parallel, like a rounded button centered inside a rounded card. Don't mix many different radii.
+  - The app's container itself is clipped by the OS with a ${APP_CONTAINER_RADIUS}px corner radius (logical px). Any element that sits NEAR one of the screen's corners — a full-bleed panel, a card flush against the edges, a bottom bar — must be concentric with that container corner too: its radius = ${APP_CONTAINER_RADIUS}px − its distance from the screen edge. (E.g. a card inset 8px from the screen corner gets a ${APP_CONTAINER_RADIUS}px − 8 = ${APP_CONTAINER_RADIUS - 8}px radius on the corner(s) facing the screen corner.) Elements far from the screen corners just follow the nested-corner rule above.
   - Center content within its container; align related elements to shared edges/baselines. Aim for balanced, symmetric padding so elements look concentric and intentional.
   - Typography: you may use ANY Google Font to fit the app's character — a clean sans (e.g. Inter, Manrope) for utilities, an elegant serif (e.g. Playfair Display, Fraunces) for editorial/journaling, a monospace (e.g. Space Mono, JetBrains Mono) for numbers/code. List every Google Font family you use, by its exact name, in the "fonts" field; they are loaded automatically. Reference them in CSS with a fallback, e.g. font-family: 'Playfair Display', serif. Use at most 1-2 fonts. Leave "fonts" empty to use the default system font.
 - Network: NEVER use fetch, XMLHttpRequest, WebSocket, or external URLs/scripts directly — the ONLY allowed network access is the \`net.fetch\` helper described above.
