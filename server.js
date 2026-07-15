@@ -296,37 +296,53 @@ app.post("/api/generate-app", async (req, res) => {
 
     sendStatus("Thinking…");
 
-    // Server-side tools can pause the turn (stop_reason "pause_turn") when the
-    // internal tool loop hits its iteration limit; re-send to resume.
-    let messages = [{ role: "user", content: userText }];
-    let message;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const stream = anthropic.messages.stream({ ...params, messages });
-      watchStream(stream);
-      message = await stream.finalMessage();
-      if (message.stop_reason !== "pause_turn") break;
-      messages = [...messages, { role: "assistant", content: message.content }];
-    }
+    // The model occasionally returns schema-valid JSON with an empty "code"
+    // field; treat that (and malformed output) as a failed attempt and
+    // regenerate once before giving up.
+    let spec = null;
+    for (let genTry = 0; genTry < 2 && !spec; genTry++) {
+      if (genTry > 0) sendStatus("That attempt failed — trying again…");
 
-    if (message.stop_reason === "refusal") {
-      return fail(422, "The request was declined. Try a different idea.");
-    }
+      // Server-side tools can pause the turn (stop_reason "pause_turn") when
+      // the internal tool loop hits its iteration limit; re-send to resume.
+      let messages = [{ role: "user", content: userText }];
+      let message;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const stream = anthropic.messages.stream({ ...params, messages });
+        watchStream(stream);
+        message = await stream.finalMessage();
+        if (message.stop_reason !== "pause_turn") break;
+        messages = [
+          ...messages,
+          { role: "assistant", content: message.content },
+        ];
+      }
 
-    // With web search in play the content can contain tool-use blocks and the
-    // final JSON may span multiple text blocks — join them all.
-    const text = message.content
-      .filter((b) => b.type === "text")
-      .map((b) => b.text)
-      .join("");
-    if (!text) {
-      return fail(502, "No app was generated.");
-    }
+      if (message.stop_reason === "refusal") {
+        return fail(422, "The request was declined. Try a different idea.");
+      }
 
-    let spec;
-    try {
-      spec = JSON.parse(text);
-    } catch {
-      return fail(502, "Generated app was malformed.");
+      // With web search in play the content can contain tool-use blocks and
+      // the final JSON may span multiple text blocks — join them all.
+      const text = message.content
+        .filter((b) => b.type === "text")
+        .map((b) => b.text)
+        .join("");
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed.code && parsed.code.trim()) {
+          spec = parsed;
+        } else {
+          console.warn("generate-app: empty code in generated spec, retrying");
+        }
+      } catch {
+        console.warn(
+          `generate-app: unparseable output (${text.length} chars), retrying`
+        );
+      }
+    }
+    if (!spec) {
+      return fail(502, "No app was generated. Try again.");
     }
 
     if (streaming) {
