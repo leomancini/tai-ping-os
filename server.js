@@ -141,6 +141,7 @@ Return ONLY the structured fields. The "code" field is JavaScript (JSX allowed) 
   - To take a photo: draw the video onto a \`<canvas>\` (\`ctx.drawImage(video, ...)\`), then \`canvas.toBlob(...)\` and save it with \`storage.putBlob\`. Un-mirror front-camera captures (flip the canvas) so saved photos read correctly.
 - Plain JavaScript only (no TypeScript types). Keep it self-contained.
 - If you use emoji or special characters, write the actual character directly. NEVER use unicode escape sequences like \\u{1F4D6} or \\uXXXX (they are invalid in JSX text).
+- Line breaks in text: JSX text does NOT process escape sequences — writing \\n (or \\t) directly in JSX text renders a literal backslash-n, not a line break. For multi-line text use separate elements or <br />; or keep the text in a JS string that contains REAL newlines (e.g. a template literal spanning lines, or "\\n" inside a quoted string, which JS turns into a real newline) and render it inside an element styled with white-space: pre-line. The same applies to text from APIs: if it contains newline characters, render it with white-space: pre-line rather than expecting JSX to convert anything.
 
 Worked example of a valid "code" value (a counter that persists) — note the
 styled components are declared at the top level, OUTSIDE function App:
