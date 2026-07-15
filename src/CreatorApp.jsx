@@ -131,6 +131,46 @@ const Swatch = styled.div`
   background: ${(p) => p.$color};
 `;
 
+// Placeholder ideas for the create field. One is shown at a time, cycling in
+// random order (never the same one twice in a row).
+const PLACEHOLDER_IDEAS = [
+  "a tip calculator that remembers the last bill",
+  "a pomodoro timer with a tomato that ripens",
+  "a dice roller for board games",
+  "a daily water intake tracker",
+  "a coin flip with a satisfying animation",
+  "current weather with a 5-day forecast",
+  "a to-do list that celebrates when you finish",
+  "a random dinner idea picker",
+  "a unit converter for cooking measurements",
+  "a breathing exercise with a pulsing circle",
+  "a scoreboard for two players",
+  "a countdown to New Year's Eve",
+  "a random compliment generator",
+  "a metronome with tap tempo",
+  "an expense splitter for dinners out",
+  "flashcards for learning Spanish basics",
+  "a magic 8-ball for tough decisions",
+  "a mood journal with one emoji per day",
+  "a reaction time tester",
+  "a color palette generator",
+  "top Hacker News headlines right now",
+  "live Bitcoin and Ethereum prices",
+  "rock paper scissors against the phone",
+  "a random workout with 5 exercises",
+  "a sleep calculator for the best bedtime",
+  "a trivia quiz about space",
+  "a photo booth with a countdown timer",
+  "a stopwatch with lap times",
+  "a random act of kindness suggester",
+  "a plant watering reminder",
+  "a memory matching game with emoji",
+  "a doodle pad with different brush colors",
+];
+
+const randomIdea = () =>
+  PLACEHOLDER_IDEAS[Math.floor(Math.random() * PLACEHOLDER_IDEAS.length)];
+
 async function generate(body, key, onStatus) {
   let res;
   try {
@@ -206,6 +246,22 @@ function CreatorApp({ onLaunch }) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null); // live progress from the server
   const [error, setError] = useState(null);
+  const [placeholder, setPlaceholder] = useState(randomIdea);
+
+  // Cycle the create-field placeholder through the ideas in random order,
+  // never showing the same one twice in a row.
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      setPlaceholder((prev) => {
+        let next;
+        do {
+          next = randomIdea();
+        } while (next === prev);
+        return next;
+      });
+    }, 3500);
+    return () => clearInterval(id);
+  }, []);
 
   const handleCreate = async () => {
     if (demo) {
@@ -315,7 +371,7 @@ function CreatorApp({ onLaunch }) {
       <Field
         autoFocus
         disabled={busy}
-        placeholder="e.g. a tip calculator that remembers the last bill"
+        placeholder={placeholder}
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         onKeyDown={submitOnEnter(handleCreate)}
