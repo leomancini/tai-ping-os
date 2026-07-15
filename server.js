@@ -118,6 +118,11 @@ Return ONLY the structured fields. The "code" field is JavaScript (JSX allowed) 
     public, keyless HTTP(S) APIs (no auth headers, no API keys). Always handle
     loading and error states, and cache results in \`storage\` when it makes the
     app feel faster or work offline.
+      \`await net.search(query)\` returns \`{ results: [{ title, url, snippet }] }\`
+    — a live web search the app can run at runtime. Use it when the app needs
+    current information and you don't know a suitable JSON API (headlines,
+    "what's happening", finding pages). Prefer a real JSON API via \`net.fetch\`
+    when you know one; search results are just titles/links/snippets.
 - The root element must fill its container: width: 100%; height: 100%; box-sizing: border-box.
 - Design for a dark phone screen by default unless the app implies otherwise. Make it look nice and be genuinely functional.
 - Visual design — follow these for a clean, native-feeling look:
@@ -163,19 +168,18 @@ function App() {
 
 (You may use JSX instead of React.createElement — it is transpiled before running.)
 
-Live data from the web — you have a web_search tool. Decide on your own to use
-it whenever real data would make the app meaningfully better; the user should
-NOT have to ask for it. Choose the right strategy per app:
-- Mostly-static data (trivia questions, country facts, workout lists, recipes,
-  historical events): search the web, then bake the real data into the app as
-  plain constants. No runtime fetching needed.
-- Data that must be CURRENT (weather, prices, scores, news, transit): search
-  the web to find a public, keyless JSON API (and to verify its response
-  shape), then build the app to call it at runtime with \`net.fetch\`, with
-  loading/error states and sensible caching in \`storage\`.
-- Apps with no real-data angle (calculators, timers, games): don't search.
-Search sparingly — every search adds noticeable wait time for the user. Prefer
-a single well-chosen search; only search again if the first result was unusable.
+Real data — you have NO web access while generating; work from what you know.
+Choose the right strategy per app:
+- Static content you know (trivia questions, country facts, workout lists,
+  recipes, historical events): write real data directly into the app as plain
+  constants.
+- Data that must be CURRENT (weather, prices, scores, news, transit): build the
+  app to fetch it at runtime with \`net.fetch\` from a public, keyless JSON API
+  you know from memory (e.g. api.open-meteo.com for weather, api.coingecko.com
+  for crypto, hn.algolia.com/api for Hacker News, wikipedia's REST API), with
+  loading/error states and sensible caching in \`storage\`. If no suitable API
+  comes to mind, use \`net.search\` at runtime instead.
+- Apps with no real-data angle (calculators, timers, games): no network at all.
 
 Also choose:
 - "name": a short app name (1-2 words).
@@ -260,10 +264,9 @@ app.post("/api/generate-app", async (req, res) => {
       max_tokens: 32000,
       thinking: { type: "adaptive" },
       system: SYSTEM_PROMPT,
-      // Let the model search the web on its own when live/real data would
-      // improve the app (it decides — see the system prompt). max_uses is kept
-      // low because each search is a full extra round trip of latency.
-      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 3 }],
+      // No tools: generation never searches the web (it was slow and rarely
+      // necessary). Apps that need live data use net.fetch / net.search at
+      // runtime instead — see the system prompt.
       output_config: {
         // "medium" trades a bit of thinking depth for speed — plenty for
         // single-file apps like these.
@@ -284,9 +287,7 @@ app.post("/api/generate-app", async (req, res) => {
       stream.on("streamEvent", (event) => {
         if (event.type !== "content_block_start") return;
         const block = event.content_block;
-        if (block.type === "server_tool_use") {
-          sendStatus("Searching the web…");
-        } else if (block.type === "thinking") {
+        if (block.type === "thinking") {
           sendStatus("Thinking…");
         } else if (block.type === "text") {
           sendStatus("Writing the app…");
@@ -303,27 +304,19 @@ app.post("/api/generate-app", async (req, res) => {
     for (let genTry = 0; genTry < 2 && !spec; genTry++) {
       if (genTry > 0) sendStatus("That attempt failed — trying again…");
 
-      // Server-side tools can pause the turn (stop_reason "pause_turn") when
-      // the internal tool loop hits its iteration limit; re-send to resume.
-      let messages = [{ role: "user", content: userText }];
-      let message;
-      for (let attempt = 0; attempt < 5; attempt++) {
-        const stream = anthropic.messages.stream({ ...params, messages });
-        watchStream(stream);
-        message = await stream.finalMessage();
-        if (message.stop_reason !== "pause_turn") break;
-        messages = [
-          ...messages,
-          { role: "assistant", content: message.content },
-        ];
-      }
+      const stream = anthropic.messages.stream({
+        ...params,
+        messages: [{ role: "user", content: userText }],
+      });
+      watchStream(stream);
+      const message = await stream.finalMessage();
 
       if (message.stop_reason === "refusal") {
         return fail(422, "The request was declined. Try a different idea.");
       }
 
-      // With web search in play the content can contain tool-use blocks and
-      // the final JSON may span multiple text blocks — join them all.
+      // The final JSON may span multiple text blocks (interleaved with
+      // thinking) — join them all.
       const text = message.content
         .filter((b) => b.type === "text")
         .map((b) => b.text)
@@ -354,6 +347,80 @@ app.post("/api/generate-app", async (req, res) => {
   } catch (error) {
     console.error("generate-app error:", error);
     fail(500, error.message || "Generation failed.");
+  }
+});
+
+// Web search for generated apps' `net.search` helper: server-side DuckDuckGo
+// HTML search parsed into simple {title, url, snippet} results. Keyless and
+// free; no secrets involved, so demo users may use it too.
+const stripHtml = (s) =>
+  s
+    .replace(/<[^>]*>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#x?27;|&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+
+app.post("/api/search", async (req, res) => {
+  const user = authUser(req);
+  if (!user) return res.status(401).json({ error: "Invalid or missing key." });
+
+  const { query } = req.body || {};
+  if (!query || typeof query !== "string" || !query.trim()) {
+    return res.status(400).json({ error: "Missing 'query'." });
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const upstream = await fetch(
+      "https://html.duckduckgo.com/html/?q=" +
+        encodeURIComponent(query.trim()),
+      {
+        signal: controller.signal,
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+        },
+      }
+    );
+    if (!upstream.ok) {
+      return res.status(502).json({ error: "Search is unavailable right now." });
+    }
+    const html = await upstream.text();
+
+    // Titles/links and snippets are matched separately and zipped by index —
+    // good enough for DDG's stable result markup.
+    const links = [
+      ...html.matchAll(/<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g),
+    ];
+    const snippets = [
+      ...html.matchAll(/<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g),
+    ];
+    const results = [];
+    for (let i = 0; i < links.length && results.length < 8; i++) {
+      let url = links[i][1];
+      // DDG wraps result URLs in a redirect: //duckduckgo.com/l/?uddg=<enc>
+      const uddg = url.match(/[?&]uddg=([^&]+)/);
+      if (uddg) url = decodeURIComponent(uddg[1]);
+      if (!/^https?:\/\//.test(url)) continue; // skips ads/internal links
+      results.push({
+        title: stripHtml(links[i][2]),
+        url,
+        snippet: snippets[i] ? stripHtml(snippets[i][1]) : "",
+      });
+    }
+    res.json({ results });
+  } catch (error) {
+    const timedOut = error && error.name === "AbortError";
+    res.status(timedOut ? 504 : 502).json({
+      error: timedOut ? "Search timed out." : "Search failed.",
+    });
+  } finally {
+    clearTimeout(timer);
   }
 });
 

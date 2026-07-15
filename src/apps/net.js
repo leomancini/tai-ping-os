@@ -13,22 +13,31 @@ function readKey() {
   }
 }
 
+async function post(path, body) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-taiping-key": readKey(),
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `Request failed (${res.status}).`);
+  }
+  return data;
+}
+
 export const net = {
   // Resolves to { ok, status, contentType, text, json } — `json` is the
   // parsed body or null. Throws on proxy/network failure.
-  async fetch(url) {
-    const res = await fetch("/api/fetch", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-taiping-key": readKey(),
-      },
-      body: JSON.stringify({ url }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(data.error || `Request failed (${res.status}).`);
-    }
-    return data;
+  fetch(url) {
+    return post("/api/fetch", { url });
+  },
+  // Live web search. Resolves to { results: [{ title, url, snippet }] }.
+  // Throws on failure.
+  search(query) {
+    return post("/api/search", { query });
   },
 };
