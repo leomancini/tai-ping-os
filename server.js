@@ -289,14 +289,30 @@ app.post("/api/generate-app", async (req, res) => {
       lastStatus = text;
       sendLine({ type: "status", text });
     };
+    // The writing phase is one long content block, so a static status would
+    // freeze for its whole duration (a minute-plus on big apps) and look like
+    // a hang. Stream a growing character count instead, throttled.
+    let written = 0;
+    let lastCountAt = 0;
     const watchStream = (stream) => {
       stream.on("streamEvent", (event) => {
-        if (event.type !== "content_block_start") return;
-        const block = event.content_block;
-        if (block.type === "thinking") {
-          sendStatus("Thinking…");
-        } else if (block.type === "text") {
-          sendStatus("Writing the app…");
+        if (event.type === "content_block_start") {
+          const block = event.content_block;
+          if (block.type === "thinking") {
+            sendStatus("Thinking…");
+          } else if (block.type === "text") {
+            sendStatus("Writing the app…");
+          }
+        } else if (
+          event.type === "content_block_delta" &&
+          event.delta.type === "text_delta"
+        ) {
+          written += event.delta.text.length;
+          const now = Date.now();
+          if (now - lastCountAt > 1500) {
+            lastCountAt = now;
+            sendStatus(`Writing the app… ${written.toLocaleString("en-US")}`);
+          }
         }
       });
     };
