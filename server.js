@@ -309,7 +309,9 @@ app.post("/api/generate-app", async (req, res) => {
         ) {
           written += event.delta.text.length;
           const now = Date.now();
-          if (now - lastCountAt > 1500) {
+          // Skip the count until it's meaningful (the first delta can arrive
+          // near-empty, which would render as "Writing the app… 1").
+          if (written >= 300 && now - lastCountAt > 1500) {
             lastCountAt = now;
             sendStatus(`Writing the app… ${written.toLocaleString("en-US")}`);
           }
