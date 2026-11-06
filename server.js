@@ -266,7 +266,7 @@ app.post("/api/generate-app", async (req, res) => {
       : `Create an app: ${prompt}`;
 
     const params = {
-      model: "claude-sonnet-5",
+      model: "claude-sonnet-5-5",
       max_tokens: 32000,
       thinking: { type: "adaptive" },
       system: SYSTEM_PROMPT,
