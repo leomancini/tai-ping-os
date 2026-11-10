@@ -9,6 +9,7 @@ import { net } from "./apps/net";
 // API, and a server-proxied `net.fetch` in scope — no imports, no direct
 // network access. Results are cached by source string.
 const cache = new Map();
+const CACHE_MAX = 50; // most recently used sources kept; older ones are recompiled on demand
 
 // Code points whose literal form changes syntax when it lands inside a string
 // literal: quotes, backslash, backtick, and the JS line separators. Together
@@ -43,7 +44,13 @@ function sanitize(code) {
 // Function), so it's safe to run during render. Invoking the factory — which
 // runs the generated code — is deferred to <Runner> below the error boundary.
 function compile(code) {
-  if (cache.has(code)) return cache.get(code);
+  if (cache.has(code)) {
+    // Re-insert so Map order tracks recency and the oldest entry is evicted first.
+    const hit = cache.get(code);
+    cache.delete(code);
+    cache.set(code, hit);
+    return hit;
+  }
   const transformed = Babel.transform(sanitize(code), {
     presets: ["react"],
   }).code;
@@ -55,6 +62,7 @@ function compile(code) {
     `${transformed}\nreturn App;`
   );
   cache.set(code, factory);
+  if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
   return factory;
 }
 

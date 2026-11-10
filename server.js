@@ -229,11 +229,13 @@ app.post("/api/generate-app", async (req, res) => {
       res.flushHeaders();
       streaming = true;
     }
+    if (res.destroyed || res.writableEnded) return; // client went away
     res.write(JSON.stringify(obj) + "\n");
   };
   // Error path that works in both modes: proper status code before the
   // stream starts, an {type:"error"} line (HTTP 200) after.
   const fail = (status, error) => {
+    if (res.destroyed || res.writableEnded) return; // client went away
     if (streaming) {
       sendLine({ type: "error", error });
       res.end();
@@ -241,6 +243,12 @@ app.post("/api/generate-app", async (req, res) => {
       res.status(status).json({ error });
     }
   };
+
+  // Stop generating (and paying for it) if the client disconnects mid-way.
+  const abort = new AbortController();
+  res.on("close", () => {
+    if (!res.writableEnded) abort.abort();
+  });
 
   try {
     const user = authUser(req);
@@ -254,7 +262,8 @@ app.post("/api/generate-app", async (req, res) => {
     if (!apiKey) {
       return fail(500, `No ANTHROPIC_API_KEY configured for ${user.label}.`);
     }
-    const anthropic = new Anthropic({ apiKey });
+    // The timeout bounds each connection attempt, not the streamed response.
+    const anthropic = new Anthropic({ apiKey, timeout: 120_000, maxRetries: 1 });
 
     const { prompt, current } = req.body || {};
     if (!prompt || typeof prompt !== "string") {
@@ -328,10 +337,13 @@ app.post("/api/generate-app", async (req, res) => {
     for (let genTry = 0; genTry < 2 && !spec; genTry++) {
       if (genTry > 0) sendStatus("That attempt failed — trying again…");
 
-      const stream = anthropic.messages.stream({
-        ...params,
-        messages: [{ role: "user", content: userText }],
-      });
+      const stream = anthropic.messages.stream(
+        {
+          ...params,
+          messages: [{ role: "user", content: userText }],
+        },
+        { signal: abort.signal }
+      );
       watchStream(stream);
       const message = await stream.finalMessage();
 
@@ -369,6 +381,7 @@ app.post("/api/generate-app", async (req, res) => {
       res.json(spec);
     }
   } catch (error) {
+    if (abort.signal.aborted) return; // client disconnected; nothing to report
     console.error("generate-app error:", error);
     fail(500, error.message || "Generation failed.");
   }
@@ -480,10 +493,27 @@ app.post("/api/fetch", async (req, res) => {
       redirect: "follow",
       headers: { "User-Agent": "TaiPingOS/1.0", Accept: "*/*" },
     });
-    const buf = Buffer.from(await upstream.arrayBuffer());
-    if (buf.byteLength > PROXY_MAX_BYTES) {
+    // Enforce the cap while reading, so an oversized (or endless) body is
+    // never buffered whole.
+    let tooLarge =
+      Number(upstream.headers.get("content-length")) > PROXY_MAX_BYTES;
+    const chunks = [];
+    let size = 0;
+    if (!tooLarge && upstream.body) {
+      for await (const chunk of upstream.body) {
+        size += chunk.byteLength;
+        if (size > PROXY_MAX_BYTES) {
+          tooLarge = true;
+          break; // leaving the loop cancels the rest of the download
+        }
+        chunks.push(chunk);
+      }
+    }
+    if (tooLarge) {
+      controller.abort(); // drop the upstream connection
       return res.status(413).json({ error: "Response too large (2MB max)." });
     }
+    const buf = Buffer.concat(chunks);
     const contentType = upstream.headers.get("content-type") || "";
     const text = buf.toString("utf8");
     let json = null;
@@ -492,6 +522,7 @@ app.post("/api/fetch", async (req, res) => {
     } catch {}
     res.json({ ok: upstream.ok, status: upstream.status, contentType, text, json });
   } catch (e) {
+    if (res.headersSent) return;
     const aborted = e && e.name === "AbortError";
     res.status(502).json({
       error: aborted ? "Upstream request timed out." : "Couldn't reach that URL.",
