@@ -374,7 +374,15 @@ function CreatorApp({ onLaunch }) {
         placeholder={placeholder}
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        onKeyDown={submitOnEnter(handleCreate)}
+        onKeyDown={(e) => {
+          // Tab on an empty field accepts the placeholder idea on screen.
+          if (e.key === "Tab" && !e.shiftKey && !prompt) {
+            e.preventDefault();
+            setPrompt(placeholder);
+            return;
+          }
+          submitOnEnter(handleCreate)(e);
+        }}
       />
       {error && <ErrorText>{error}</ErrorText>}
       <Row>
